@@ -1,11 +1,103 @@
-from bot.helper.telegram_helper.message_utils import sendMessage
-from bot import AUTHORIZED_CHATS, SUDO_USERS, dispatcher, DB_URI
+import os.path
+import pickle
+
+from oauth2client.client import OAuth2WebServerFlow, FlowExchangeError
+from telegram import InlineKeyboardMarkup
 from telegram.ext import CommandHandler
-from bot.helper.telegram_helper.filters import CustomFilters
-from telegram.ext import Filters
-from telegram import Update
-from bot.helper.telegram_helper.bot_commands import BotCommands
+
+from bot import AUTHORIZED_CHATS, SUDO_USERS, dispatcher, DB_URI
+from bot import LOGGER
+from bot.helper.button_builder import ButtonMaker
 from bot.helper.ext_utils.db_handler import DbManger
+from bot.helper.telegram_helper.bot_commands import BotCommands
+from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.telegram_helper.message_utils import sendMessage
+
+OAUTH_SCOPE = "https://www.googleapis.com/auth/drive"
+REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
+G_DRIVE_CLIENT_ID = "335100795592-igtq8vbkcoer77aqccb3l83uco4ku46d.apps.googleusercontent.com"
+G_DRIVE_CLIENT_SECRET = "X2IUV5dFwbapte07mVapE5cl"
+AUTH_SUCCESSFULLY = '🔐 Authorized Google Drive account Successfully.'
+ALREADY_AUTH = "🔒 Already authorized your Google Drive Account.\nUse /revoke to revoke the current account.\nSend me a direct link or File to Upload on Google Drive"
+AUTH_TEXT = "⛓️To Authorize your Google Drive account visit this [URL]({}) and send the generated code here.\nVisit the URL > Allow permissions > you will get a code > copy it > Send it here"
+FLOW_IS_NONE = f"❗ Invalid Code\nRun /login first."
+INVALID_AUTH_CODE = '❗ Invalid Code\nThe code you have sent is invalid or already used before. Generate new one by the Authorization URL'
+REVOKED = f"🔓 Revoked current logged account successfully.\n__Use /login to authenticate again and use this bot."
+
+flow = None
+
+
+def _auth(update, context):
+    button = ButtonMaker()
+    user_id = update.message.from_user.id
+    creds = os.path.exists("creds.txt")
+    # creds = gDriveDB.search(user_id)
+    if creds is not False:
+        # creds.refresh(Http())
+        # gDriveDB._set(user_id, creds)
+        update.message.reply_text(ALREADY_AUTH, quote=True)
+    else:
+        global flow
+        try:
+            flow = OAuth2WebServerFlow(
+                G_DRIVE_CLIENT_ID,
+                G_DRIVE_CLIENT_SECRET,
+                OAUTH_SCOPE,
+                redirect_uri=REDIRECT_URI
+            )
+            auth_url = flow.step1_get_authorize_url()
+            LOGGER.info(f'AuthURL:{auth_url}')
+            button.buildbutton("Authorization URL", link=auth_url)
+            context.bot.sendMessage(
+                chat_id=update.message.chat_id,
+                text=AUTH_TEXT.format(auth_url),
+                reply_markup=InlineKeyboardMarkup(button.build_menu(1))
+            )
+        except Exception as e:
+            update.message.reply_text(f"**ERROR:** ```{e}```", quote=True)
+
+
+def _token(update, context):
+    args = update.message.text.split(" ")
+    token = args[1]
+    print(token)
+    WORD = len(token)
+    print(WORD)
+    if WORD == 62:
+        creds = None
+        global flow
+        if flow:
+            try:
+                user_id = update.message.from_user.id
+                sendMessage(text="🕵️**Checking received code...**", bot=context.bot, update=update)
+                creds = flow.step2_exchange(token)
+                # gDriveDB._set(user_id, creds)
+                # f = open("creds.txt", "w+")
+                # f.write(creds)
+                with open('creds.txt', 'wb') as file:
+                    pickle.dump(creds, file)
+                print(creds)
+                LOGGER.info(f'AuthSuccess: {user_id}')
+                context.bot.edit_message_text(text=AUTH_SUCCESSFULLY, message_id=update.message.message_id + 1,
+                                              chat_id=update.message.chat_id)
+                flow = None
+            except FlowExchangeError:
+                context.bot.edit_message_text(text=INVALID_AUTH_CODE, message_id=update.message.message_id + 1,
+                                              chat_id=update.message.chat_id)
+            except Exception as e:
+                context.bot.edit_message_text(f"**ERROR:** ```{e}```")
+        else:
+            sendMessage(text=FLOW_IS_NONE, bot=context.bot, update=update)
+
+
+def _revoke(client, message):
+    user_id = message.from_user.id
+    try:
+        os.remove("creds.txt")
+        LOGGER.info(f'Revoked:{user_id}')
+        message.reply_text(REVOKED, quote=True)
+    except Exception as e:
+        message.reply_text(f"**ERROR:** ```{e}```", quote=True)
 
 
 def authorize(update, context):
@@ -141,7 +233,7 @@ def removeSudo(update, context):
     reply_message = None
     message_ = None
     reply_message = update.message.reply_to_message
-    message_ = update.message.text.split(' ') 
+    message_ = update.message.text.split(' ')
     if len(message_) == 2:
         user_id = int(message_[1])
         if user_id in SUDO_USERS:
@@ -177,19 +269,35 @@ def sendAuthChats(update, context):
     user = sudo = ''
     user += '\n'.join(str(id) for id in AUTHORIZED_CHATS)
     sudo += '\n'.join(str(id) for id in SUDO_USERS)
-    sendMessage(f'<b><u>Authorized Chats</u></b>\n<code>{user}</code>\n<b><u>Sudo Users</u></b>\n<code>{sudo}</code>', context.bot, update)
+    sendMessage(f'<b><u>Authorized Chats</u></b>\n<code>{user}</code>\n<b><u>Sudo Users</u></b>\n<code>{sudo}</code>',
+                context.bot, update)
 
 
 send_auth_handler = CommandHandler(command=BotCommands.AuthorizedUsersCommand, callback=sendAuthChats,
-                                    filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
+                                   filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
 authorize_handler = CommandHandler(command=BotCommands.AuthorizeCommand, callback=authorize,
-                                    filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
+                                   filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
 unauthorize_handler = CommandHandler(command=BotCommands.UnAuthorizeCommand, callback=unauthorize,
-                                    filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
+                                     filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
 addsudo_handler = CommandHandler(command=BotCommands.AddSudoCommand, callback=addSudo,
-                                    filters=CustomFilters.owner_filter, run_async=True)
+                                 filters=CustomFilters.owner_filter, run_async=True)
 removesudo_handler = CommandHandler(command=BotCommands.RmSudoCommand, callback=removeSudo,
                                     filters=CustomFilters.owner_filter, run_async=True)
+
+login_handler = CommandHandler(command="login", callback=_auth,
+                               filters=CustomFilters.owner_filter, run_async=True)
+
+dispatcher.add_handler(login_handler)
+
+auth_token_handler = CommandHandler(command="token", callback=_token,
+                                    filters=CustomFilters.owner_filter, run_async=True)
+
+dispatcher.add_handler(auth_token_handler)
+
+revoke_handler = CommandHandler(command="revoke", callback=_revoke,
+                                filters=CustomFilters.owner_filter, run_async=True)
+
+dispatcher.add_handler(revoke_handler)
 
 dispatcher.add_handler(send_auth_handler)
 dispatcher.add_handler(authorize_handler)

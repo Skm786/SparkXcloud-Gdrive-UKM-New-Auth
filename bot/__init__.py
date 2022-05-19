@@ -19,6 +19,7 @@ from psycopg2 import Error
 
 import socket
 import faulthandler
+
 faulthandler.enable()
 
 socket.setdefaulttimeout(600)
@@ -42,6 +43,7 @@ Interval = []
 def getConfig(name: str):
     return os.environ[name]
 
+
 def mktable():
     try:
         conn = psycopg2.connect(DB_URI)
@@ -53,6 +55,7 @@ def mktable():
     except Error as e:
         LOGGER.error(e)
         sys.exit(1)
+
 
 try:
     if bool(getConfig('_____REMOVE_THIS_LINE_____')):
@@ -74,7 +77,13 @@ def get_client() -> qba.TorrentsAPIMixIn:
     qb_client = qba.Client(host="localhost", port=8090, username="admin", password="adminadmin")
     try:
         qb_client.auth_log_in()
-        qb_client.application.set_preferences({"disk_cache":64, "incomplete_files_ext":True, "max_connec":3000, "max_connec_per_torrent":300, "async_io_threads":8, "preallocate_all":True, "upnp":True, "dl_limit":-1, "up_limit":-1, "dht":True, "pex":True, "lsd":True, "encryption":0, "queueing_enabled":True, "max_active_downloads":15, "max_active_torrents":50, "dont_count_slow_torrents":True, "bittorrent_protocol":0, "recheck_completed_torrents":True, "enable_multi_connections_from_same_ip":True, "slow_torrent_dl_rate_threshold":100,"slow_torrent_inactive_timer":600})
+        qb_client.application.set_preferences(
+            {"disk_cache": 64, "incomplete_files_ext": True, "max_connec": 3000, "max_connec_per_torrent": 300,
+             "async_io_threads": 8, "preallocate_all": True, "upnp": True, "dl_limit": -1, "up_limit": -1, "dht": True,
+             "pex": True, "lsd": True, "encryption": 0, "queueing_enabled": True, "max_active_downloads": 15,
+             "max_active_torrents": 50, "dont_count_slow_torrents": True, "bittorrent_protocol": 0,
+             "recheck_completed_torrents": True, "enable_multi_connections_from_same_ip": True,
+             "slow_torrent_dl_rate_threshold": 100, "slow_torrent_inactive_timer": 600})
         return qb_client
     except qba.LoginFailed as e:
         LOGGER.error(str(e))
@@ -83,7 +92,10 @@ def get_client() -> qba.TorrentsAPIMixIn:
 
 DOWNLOAD_DIR = None
 BOT_TOKEN = None
-
+with open('selected_folder.txt', 'r') as file:
+    args = file.read().split(" ")
+UPLOAD_FOLDER_ID = args[0]
+UPLOAD_FOLDER_NAME = args[1]
 download_dict_lock = threading.Lock()
 status_reply_dict_lock = threading.Lock()
 # Key: update.effective_chat.id
@@ -121,7 +133,7 @@ except:
     pass
 try:
     BOT_TOKEN = getConfig('BOT_TOKEN')
-    parent_id = getConfig('GDRIVE_FOLDER_ID')
+    parent_id = getConfig('GDRIVE_PARENT_FOLDER_ID')
     DOWNLOAD_DIR = getConfig('DOWNLOAD_DIR')
     if not DOWNLOAD_DIR.endswith("/"):
         DOWNLOAD_DIR = DOWNLOAD_DIR + '/'
@@ -148,7 +160,7 @@ if DB_URI is not None:
         cur = conn.cursor()
         sql = "SELECT * from users;"
         cur.execute(sql)
-        rows = cur.fetchall()  #returns a list ==> (uid, sudo)
+        rows = cur.fetchall()  # returns a list ==> (uid, sudo)
         for row in rows:
             AUTHORIZED_CHATS.add(row[0])
             if row[1]:
@@ -226,7 +238,7 @@ try:
     if len(CRYPT) == 0:
         raise KeyError
 except:
-    CRYPT = None    
+    CRYPT = None
 try:
     CLONE_LIMIT = getConfig('CLONE_LIMIT')
     if len(CLONE_LIMIT) == 0:
@@ -274,7 +286,7 @@ try:
     if len(IMAGE_URL) == 0:
         IMAGE_URL = 'https://telegra.ph/file/7ac7fa23a5c3d2bbba654.jpg'
 except KeyError:
-    IMAGE_URL = 'https://telegra.ph/file/7ac7fa23a5c3d2bbba654.jpg'    
+    IMAGE_URL = 'https://telegra.ph/file/7ac7fa23a5c3d2bbba654.jpg'
 try:
     STOP_DUPLICATE = getConfig('STOP_DUPLICATE')
     STOP_DUPLICATE = STOP_DUPLICATE.lower() == 'true'
@@ -368,6 +380,7 @@ try:
 except KeyError:
     ACCOUNTS_ZIP_URL = None
 
-updater = tg.Updater(token=BOT_TOKEN)
+updater = tg.Updater(token=BOT_TOKEN, use_context=True)
 bot = updater.bot
 dispatcher = updater.dispatcher
+updater.start_polling(drop_pending_updates=IGNORE_PENDING_REQUESTS)

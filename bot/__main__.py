@@ -17,7 +17,9 @@ from bot.helper.telegram_helper.message_utils import *
 from .helper.ext_utils.bot_utils import get_readable_file_size, get_readable_time
 from .helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper import button_build
-from .modules import authorize, list, cancel_mirror, mirror_status, mirror, clone, watch, shell, eval, torrent_search, delete, speedtest, count, config, updates
+from .modules import authorize, list, cancel_mirror, speedtest, mirror_status, mirror, clone, watch, shell, eval, torrent_search, \
+    delete, speedtest, count, config, updates
+from bot import changeFolder
 
 
 def stats(update, context):
@@ -58,12 +60,13 @@ Type /{BotCommands.HelpCommand} to get a list of available commands
     buttons.buildbutton("Channel", "https://t.me/SparkXcloud")
     reply_markup = InlineKeyboardMarkup(buttons.build_menu(2))
     if CustomFilters.authorized_user(update) or CustomFilters.authorized_chat(update):
-        if update.message.chat.type == "private" :
+        if update.message.chat.type == "private":
             sendMessage(f"Hey I'm Alive 🙂\nSince: <code>{uptime}</code>", context.bot, update)
-        else :
+        else:
             sendMarkup(start_string, context.bot, update, reply_markup)
-    else :
-        sendMarkup(f"Oops! not a Authorized user.\nPlease deploy your own <b>SparkXcloud-Gdrive-MirrorBot</b>.", context.bot, update, reply_markup)
+    else:
+        sendMarkup(f"Oops! not a Authorized user.\nPlease deploy your own <b>SparkXcloud-Gdrive-MirrorBot</b>.",
+                   context.bot, update, reply_markup)
 
 
 def restart(update, context):
@@ -187,26 +190,26 @@ def bot_help(update, context):
 
 
 botcmds = [
-        (f'{BotCommands.HelpCommand}','Get Detailed Help'),
-        (f'{BotCommands.MirrorCommand}', 'Start Mirroring'),
-        (f'{BotCommands.TarMirrorCommand}','Start mirroring and upload as .tar'),
-        (f'{BotCommands.ZipMirrorCommand}','Start mirroring and upload as .zip'),
-        (f'{BotCommands.UnzipMirrorCommand}','Extract files'),
-        (f'{BotCommands.CloneCommand}','Copy file/folder to Drive'),
-        (f'{BotCommands.CountCommand}','Count file/folder of Drive link'),
-        (f'{BotCommands.DeleteCommand}','Delete file from Drive'),
-        (f'{BotCommands.WatchCommand}','Mirror Youtube-dl support link'),
-        (f'{BotCommands.TarWatchCommand}','Mirror Youtube playlist link as .tar'),
-        (f'{BotCommands.CancelMirror}','Cancel a task'),
-        (f'{BotCommands.CancelAllCommand}','Cancel all tasks'),
-        (f'{BotCommands.ListCommand}','Searches files in Drive'),
-        (f'{BotCommands.StatusCommand}','Get Mirror Status message'),
-        (f'{BotCommands.StatsCommand}','Bot Usage Stats'),
-        (f'{BotCommands.PingCommand}','Ping the Bot'),
-        (f'{BotCommands.RestartCommand}','Restart the bot [owner/sudo only]'),
-        (f'{BotCommands.LogCommand}','Get the Bot Log [owner/sudo only]'),
-        (f'{BotCommands.TsHelpCommand}','Get help for Torrent search module')
-    ]
+    (f'{BotCommands.HelpCommand}', 'Get Detailed Help'),
+    (f'{BotCommands.MirrorCommand}', 'Start Mirroring'),
+    (f'{BotCommands.TarMirrorCommand}', 'Start mirroring and upload as .tar'),
+    (f'{BotCommands.ZipMirrorCommand}', 'Start mirroring and upload as .zip'),
+    (f'{BotCommands.UnzipMirrorCommand}', 'Extract files'),
+    (f'{BotCommands.CloneCommand}', 'Copy file/folder to Drive'),
+    (f'{BotCommands.CountCommand}', 'Count file/folder of Drive link'),
+    (f'{BotCommands.DeleteCommand}', 'Delete file from Drive'),
+    (f'{BotCommands.WatchCommand}', 'Mirror Youtube-dl support link'),
+    (f'{BotCommands.TarWatchCommand}', 'Mirror Youtube playlist link as .tar'),
+    (f'{BotCommands.CancelMirror}', 'Cancel a task'),
+    (f'{BotCommands.CancelAllCommand}', 'Cancel all tasks'),
+    (f'{BotCommands.ListCommand}', 'Searches files in Drive'),
+    (f'{BotCommands.StatusCommand}', 'Get Mirror Status message'),
+    (f'{BotCommands.StatsCommand}', 'Bot Usage Stats'),
+    (f'{BotCommands.PingCommand}', 'Ping the Bot'),
+    (f'{BotCommands.RestartCommand}', 'Restart the bot [owner/sudo only]'),
+    (f'{BotCommands.LogCommand}', 'Get the Bot Log [owner/sudo only]'),
+    (f'{BotCommands.TsHelpCommand}', 'Get help for Torrent search module')
+]
 
 
 def main():
@@ -229,19 +232,22 @@ def main():
     restart_handler = CommandHandler(BotCommands.RestartCommand, restart,
                                      filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
     help_handler = CommandHandler(BotCommands.HelpCommand,
-                                  bot_help, filters=CustomFilters.authorized_chat | CustomFilters.authorized_user, run_async=True)
+                                  bot_help, filters=CustomFilters.authorized_chat | CustomFilters.authorized_user,
+                                  run_async=True)
     stats_handler = CommandHandler(BotCommands.StatsCommand,
-                                   stats, filters=CustomFilters.authorized_chat | CustomFilters.authorized_user, run_async=True)
-    log_handler = CommandHandler(BotCommands.LogCommand, log, filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
+                                   stats, filters=CustomFilters.authorized_chat | CustomFilters.authorized_user,
+                                   run_async=True)
+    log_handler = CommandHandler(BotCommands.LogCommand, log,
+                                 filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
     dispatcher.add_handler(start_handler)
     dispatcher.add_handler(ping_handler)
     dispatcher.add_handler(restart_handler)
     dispatcher.add_handler(help_handler)
     dispatcher.add_handler(stats_handler)
     dispatcher.add_handler(log_handler)
-    updater.start_polling(drop_pending_updates=IGNORE_PENDING_REQUESTS)
     LOGGER.info("💥𝐁𝐨𝐭 𝐒𝐭𝐚𝐫𝐭𝐞𝐝❗")
     signal.signal(signal.SIGINT, fs_utils.exit_clean_up)
+
 
 app.start()
 main()

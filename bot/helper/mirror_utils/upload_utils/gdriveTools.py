@@ -1,37 +1,34 @@
-import os
 import io
-from pickle import load as pload, dump as pdump
+import json
+import logging
+import os
+import pickle
+import re
 import urllib.parse as urlparse
+from random import randrange
 from urllib.parse import parse_qs
 
-import re
-import json
 import requests
-import logging
-import time
-from random import randrange
-
-from google.auth.transport.requests import Request
-from google.oauth2 import service_account
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
+from telegram import InlineKeyboardMarkup
+from telegraph import Telegraph
 from tenacity import *
 
-from telegram import InlineKeyboardMarkup
-from bot.helper.telegram_helper import button_build
-from telegraph import Telegraph
-from bot import parent_id, IMAGE_URL, DOWNLOAD_DIR, IS_TEAM_DRIVE, INDEX_URL, \
-    USE_SERVICE_ACCOUNTS, telegraph_token, BUTTON_FOUR_NAME, BUTTON_FOUR_URL, BUTTON_FIVE_NAME, BUTTON_FIVE_URL, BUTTON_SIX_NAME, BUTTON_SIX_URL, SHORTENER, SHORTENER_API, VIEW_LINK
+from bot import DOWNLOAD_DIR, IS_TEAM_DRIVE, INDEX_URL, \
+    USE_SERVICE_ACCOUNTS, telegraph_token, BUTTON_FOUR_NAME, BUTTON_FOUR_URL, BUTTON_FIVE_NAME, BUTTON_FIVE_URL, \
+    BUTTON_SIX_NAME, BUTTON_SIX_URL, SHORTENER, SHORTENER_API, VIEW_LINK
 from bot.helper.ext_utils.bot_utils import get_readable_file_size, setInterval
 from bot.helper.ext_utils.fs_utils import get_mime_type, get_path_size
+from bot.helper.telegram_helper import button_build
 
 LOGGER = logging.getLogger(__name__)
 logging.getLogger('googleapiclient.discovery').setLevel(logging.ERROR)
 if USE_SERVICE_ACCOUNTS:
     SERVICE_ACCOUNT_INDEX = randrange(len(os.listdir("accounts")))
 TELEGRAPHLIMIT = 80
+
 
 class GoogleDriveHelper:
     def __init__(self, name=None, listener=None):
@@ -68,6 +65,10 @@ class GoogleDriveHelper:
         self.total_folders = 0
         self.transferred_size = 0
         self.sa_count = 0
+        with open('selected_folder.txt', 'r') as file:
+            args = file.read().split(" ")
+        self.UPLOAD_FOLDER_ID = args[0]
+        self.UPLOAD_FOLDER_NAME = args[1]
 
     def speed(self):
         """
@@ -95,7 +96,7 @@ class GoogleDriveHelper:
     def getIdFromUrl(link: str):
         if "folders" in link or "file" in link:
             regex = r"https://drive\.google\.com/(drive)?/?u?/?\d?/?(mobile)?/?(file)?(folders)?/?d?/([-\w]+)[?+]?/?(w+)?"
-            res = re.search(regex,link)
+            res = re.search(regex, link)
             if res is None:
                 raise IndexError("G-Drive ID not found.")
             return res.group(5)
@@ -125,10 +126,11 @@ class GoogleDriveHelper:
             file_metadata['parents'] = [parent_id]
         return self.__service.files().create(supportsTeamDrives=True,
                                              body=file_metadata, media_body=media_body).execute()
+
     def deletefile(self, link: str):
         try:
             file_id = self.getIdFromUrl(link)
-        except (KeyError,IndexError):
+        except (KeyError, IndexError):
             msg = "📛 𝐆𝐨𝐨𝐠𝐥𝐞 𝐃𝐫𝐢𝐯𝐞 𝐈𝐃 𝐜𝐨𝐮𝐥𝐝 𝐧𝐨𝐭 𝐛𝐞 𝐟𝐨𝐮𝐧𝐝 𝐢𝐧 𝐭𝐡𝐞 𝐩𝐫𝐨𝐯𝐢𝐝𝐞𝐝 𝐥𝐢𝐧𝐤"
             return msg
         msg = ''
@@ -153,7 +155,7 @@ class GoogleDriveHelper:
         SERVICE_ACCOUNT_INDEX += 1
         LOGGER.info(f"Switching to {SERVICE_ACCOUNT_INDEX}.json service account")
         self.__service = self.authorize()
-        
+
     @retry(wait=wait_exponential(multiplier=2, min=3, max=6), stop=stop_after_attempt(5),
            retry=retry_if_exception_type(HttpError), before=before_log(LOGGER, logging.DEBUG))
     def __set_permission(self, drive_id):
@@ -178,7 +180,7 @@ class GoogleDriveHelper:
         try:
             self.typee = file_metadata['mimeType']
         except:
-            self.typee = 'File' 
+            self.typee = 'File'
         if parent_id is not None:
             file_metadata['parents'] = [parent_id]
 
@@ -248,7 +250,7 @@ class GoogleDriveHelper:
         if os.path.isfile(file_path):
             try:
                 mime_type = get_mime_type(file_path)
-                link = self.upload_file(file_path, file_name, mime_type, parent_id)
+                link = self.upload_file(file_path, file_name, mime_type, self.UPLOAD_FOLDER_ID)
                 if self.is_cancelled:
                     return
                 if link is None:
@@ -269,7 +271,7 @@ class GoogleDriveHelper:
                     return
         else:
             try:
-                dir_id = self.create_directory(os.path.basename(os.path.abspath(file_name)), parent_id)
+                dir_id = self.create_directory(os.path.basename(os.path.abspath(file_name)), self.UPLOAD_FOLDER_ID)
                 result = self.upload_dir(file_path, dir_id)
                 if result is None:
                     raise Exception('Upload has been manually cancelled!')
@@ -307,7 +309,7 @@ class GoogleDriveHelper:
         }
 
         try:
-            res = self.__service.files().copy(supportsAllDrives=True,fileId=file_id,body=body).execute()
+            res = self.__service.files().copy(supportsAllDrives=True, fileId=file_id, body=body).execute()
             return res
         except HttpError as err:
             if err.resp.get('content-type', '').startswith('application/json'):
@@ -318,7 +320,7 @@ class GoogleDriveHelper:
                             self.is_cancelled = True
                             raise err
                         self.switchServiceAccount()
-                        return self.copyFile(file_id,dest_id)
+                        return self.copyFile(file_id, dest_id)
                     else:
                         self.is_cancelled = True
                         LOGGER.info(f"Got: {reason}")
@@ -328,13 +330,13 @@ class GoogleDriveHelper:
 
     @retry(wait=wait_exponential(multiplier=2, min=3, max=6), stop=stop_after_attempt(5),
            retry=retry_if_exception_type(HttpError), before=before_log(LOGGER, logging.DEBUG))
-    def getFileMetadata(self,file_id):
+    def getFileMetadata(self, file_id):
         return self.__service.files().get(supportsAllDrives=True, fileId=file_id,
-                                              fields="name,id,mimeType,size").execute()
+                                          fields="name,id,mimeType,size").execute()
 
     @retry(wait=wait_exponential(multiplier=2, min=3, max=6), stop=stop_after_attempt(5),
            retry=retry_if_exception_type(HttpError), before=before_log(LOGGER, logging.DEBUG))
-    def getFilesByFolderId(self,folder_id):
+    def getFilesByFolderId(self, folder_id):
         page_token = None
         q = f"'{folder_id}' in parents"
         files = []
@@ -344,7 +346,8 @@ class GoogleDriveHelper:
                                                    q=q,
                                                    spaces='drive',
                                                    pageSize=200,
-                                                   fields='nextPageToken, files(id, name, mimeType,size)', corpora='allDrives', orderBy='folder, name',
+                                                   fields='nextPageToken, files(id, name, mimeType,size)',
+                                                   corpora='allDrives', orderBy='folder, name',
                                                    pageToken=page_token).execute()
             for file in response.get('files', []):
                 files.append(file)
@@ -354,6 +357,8 @@ class GoogleDriveHelper:
         return files
 
     def clone(self, link):
+        print("Cloning File Id :" + self.UPLOAD_FOLDER_ID)
+        print("Cloning File Name :" + self.UPLOAD_FOLDER_NAME)
         self.is_cloning = True
         self.start_time = time.time()
         self.total_files = 0
@@ -362,7 +367,7 @@ class GoogleDriveHelper:
             self.service_account_count = len(os.listdir("accounts"))
         try:
             file_id = self.getIdFromUrl(link)
-        except (KeyError,IndexError):
+        except (KeyError, IndexError):
             msg = "📛 𝐆𝐨𝐨𝐠𝐥𝐞 𝐃𝐫𝐢𝐯𝐞 𝐈𝐃 𝐜𝐨𝐮𝐥𝐝 𝐧𝐨𝐭 𝐛𝐞 𝐟𝐨𝐮𝐧𝐝 𝐢𝐧 𝐭𝐡𝐞 𝐩𝐫𝐨𝐯𝐢𝐝𝐞𝐝 𝐥𝐢𝐧𝐤"
             return msg
         msg = ""
@@ -370,7 +375,7 @@ class GoogleDriveHelper:
         try:
             meta = self.getFileMetadata(file_id)
             if meta.get("mimeType") == self.__G_DRIVE_DIR_MIME_TYPE:
-                dir_id = self.create_directory(meta.get('name'), parent_id)
+                dir_id = self.create_directory(meta.get('name'), self.UPLOAD_FOLDER_ID)
                 self.cloneFolder(meta.get('name'), meta.get('name'), meta.get('id'), dir_id)
                 durl = self.__G_DRIVE_DIR_BASE_DOWNLOAD_URL.format(dir_id)
                 if self.is_cancelled:
@@ -403,7 +408,7 @@ class GoogleDriveHelper:
                 if BUTTON_SIX_NAME is not None and BUTTON_SIX_URL is not None:
                     buttons.buildbutton(f"{BUTTON_SIX_NAME}", f"{BUTTON_SIX_URL}")
             else:
-                file = self.copyFile(meta.get('id'), parent_id)
+                file = self.copyFile(meta.get('id'), self.UPLOAD_FOLDER_ID)
                 msg += f'<b>╭─🗂️ Fɪʟᴇɴᴀᴍᴇ : </b><code>{file.get("name")}</code>'
                 durl = self.__G_DRIVE_BASE_DOWNLOAD_URL.format(file.get("id"))
                 buttons = button_build.ButtonMaker()
@@ -415,7 +420,7 @@ class GoogleDriveHelper:
                 try:
                     typeee = file.get('mimeType')
                 except:
-                    typeee = 'File' 
+                    typeee = 'File'
                 try:
                     msg += f'\n<b>├─📦 Sɪᴢᴇ : </b><code>{get_readable_file_size(int(meta.get("size")))}</code>'
                     msg += f'\n<b>╰─⚙️ Tʏᴘᴇ : </b><code>{typeee}</code>'
@@ -427,7 +432,8 @@ class GoogleDriveHelper:
                     urls = f'{INDEX_URL}/{url_path}?a=view'
                     if SHORTENER is not None and SHORTENER_API is not None:
                         siurl = requests.get(f'https://{SHORTENER}/api?api={SHORTENER_API}&url={url}&format=text').text
-                        siurls = requests.get(f'https://{SHORTENER}/api?api={SHORTENER_API}&url={urls}&format=text').text
+                        siurls = requests.get(
+                            f'https://{SHORTENER}/api?api={SHORTENER_API}&url={urls}&format=text').text
                         buttons.buildbutton("💡 Iɴᴅᴇx Lɪɴᴋ 💡", siurl)
                         if VIEW_LINK:
                             buttons.buildbutton("📖 Vɪᴇᴡ Lɪɴᴋ 📖", siurls)
@@ -517,54 +523,40 @@ class GoogleDriveHelper:
                 break
         return new_id
 
-    def authorize(self):
-        # Get credentials
-        credentials = None
-        if not USE_SERVICE_ACCOUNTS:
-            if os.path.exists(self.__G_DRIVE_TOKEN_FILE):
-                with open(self.__G_DRIVE_TOKEN_FILE, 'rb') as f:
-                    credentials = pload(f)
-            else:
-                LOGGER.error('token.pickle not found!')
-        else:
-            LOGGER.info(f"Authorizing with {SERVICE_ACCOUNT_INDEX}.json service account")
-            credentials = service_account.Credentials.from_service_account_file(
-                f'accounts/{SERVICE_ACCOUNT_INDEX}.json',
-                scopes=self.__OAUTH_SCOPE)
-        return build('drive', 'v3', credentials=credentials, cache_discovery=False)
     def edit_telegraph(self):
-        nxt_page = 1 
+        nxt_page = 1
         prev_page = 0
-        for content in self.telegraph_content :
-            if nxt_page == 1 :
+        for content in self.telegraph_content:
+            if nxt_page == 1:
                 content += f'<b><a href="https://telegra.ph/{self.path[nxt_page]}">Next</a></b>'
                 nxt_page += 1
-            else :
+            else:
                 if prev_page <= self.num_of_path:
                     content += f'<b><a href="https://telegra.ph/{self.path[prev_page]}">Prev</a></b>'
                     prev_page += 1
                 if nxt_page < self.num_of_path:
                     content += f'<b> | <a href="https://telegra.ph/{self.path[nxt_page]}">Next</a></b>'
                     nxt_page += 1
-            Telegraph(access_token=telegraph_token).edit_page(path = self.path[prev_page],
-                                 title = '💞 𝐒𝐩𝐚𝐫𝐤𝐱𝐂𝐥𝐨𝐮𝐝-𝐆𝐝𝐫𝐢𝐯𝐞-𝐌𝐢𝐫𝐫𝐨𝐫𝐛𝐨𝐭 𝐒𝐞𝐚𝐫𝐜𝐡',
-                                 author_name='💓 𝐒𝐩𝐚𝐫𝐤𝐱𝐂𝐥𝐨𝐮𝐝-𝐆𝐝𝐫𝐢𝐯𝐞-𝐌𝐢𝐫𝐫𝐨𝐫𝐛𝐨𝐭',
-                                 author_url='https://github.com/Spark-X-Cloud/SparkXcloud-Gdrive-MirrorBot',
-                                 html_content=content)
+            Telegraph(access_token=telegraph_token).edit_page(path=self.path[prev_page],
+                                                              title='💞 𝐒𝐩𝐚𝐫𝐤𝐱𝐂𝐥𝐨𝐮𝐝-𝐆𝐝𝐫𝐢𝐯𝐞-𝐌𝐢𝐫𝐫𝐨𝐫𝐛𝐨𝐭 𝐒𝐞𝐚𝐫𝐜𝐡',
+                                                              author_name='💓 𝐒𝐩𝐚𝐫𝐤𝐱𝐂𝐥𝐨𝐮𝐝-𝐆𝐝𝐫𝐢𝐯𝐞-𝐌𝐢𝐫𝐫𝐨𝐫𝐛𝐨𝐭',
+                                                              author_url='https://github.com/Spark-X-Cloud/SparkXcloud-Gdrive-MirrorBot',
+                                                              html_content=content)
         return
 
     @staticmethod
-    def escapes(str):	
-        chars = ['\\', "'", '"', r'\a', r'\b', r'\f', r'\n', r'\r', r'\t']	
-        for char in chars:	
-            str = str.replace(char, '\\'+char)	
-        return str.strip()	
+    def escapes(str):
+        chars = ['\\', "'", '"', r'\a', r'\b', r'\f', r'\n', r'\r', r'\t']
+        for char in chars:
+            str = str.replace(char, '\\' + char)
+        return str.strip()
 
     def drive_list(self, fileName):
+        print("Current Folder Name " + self.UPLOAD_FOLDER_NAME)
         msg = ""
         fileName = self.escapes(str(fileName))
         # Create Search Query for API request.
-        query = f"'{parent_id}' in parents and (name contains '{fileName}')"
+        query = f"'{self.UPLOAD_FOLDER_ID}' in parents and trashed=False and (name contains '{fileName}')"
         response = self.__service.files().list(supportsTeamDrives=True,
                                                includeTeamDriveItems=True,
                                                q=query,
@@ -576,7 +568,8 @@ class GoogleDriveHelper:
         if response["files"]:
             msg += f'<h4>{len(response["files"])} ✅ 𝐒𝐞𝐚𝐫𝐜𝐡 𝐑𝐞𝐬𝐮𝐥𝐭 𝐅𝐨𝐫: {fileName}</h4><br><br>'
             for file in response.get('files', []):
-                if file.get('mimeType') == "application/vnd.google-apps.folder":  # Detect Whether Current Entity is a Folder or File.
+                if file.get(
+                        'mimeType') == "application/vnd.google-apps.folder":  # Detect Whether Current Entity is a Folder or File.
                     furl = f"https://drive.google.com/drive/folders/{file.get('id')}"
                     msg += f"📁 <code>{file.get('name')}<br>(folder)</code><br>"
                     if SHORTENER is not None and SHORTENER_API is not None:
@@ -588,13 +581,14 @@ class GoogleDriveHelper:
                         url_path = requests.utils.quote(f'{file.get("name")}')
                         url = f'{INDEX_URL}/{url_path}/'
                         if SHORTENER is not None and SHORTENER_API is not None:
-                            siurl = requests.get(f'https://{SHORTENER}/api?api={SHORTENER_API}&url={url}&format=text').text
+                            siurl = requests.get(
+                                f'https://{SHORTENER}/api?api={SHORTENER_API}&url={url}&format=text').text
                             msg += f' <b>| <a href="{siurl}">💡 Iɴᴅᴇx Lɪɴᴋ 💡</a></b>'
                         else:
                             msg += f' <b>| <a href="{url}">💡 Iɴᴅᴇx Lɪɴᴋ 💡</a></b>'
                 elif file.get('mimeType') == 'application/vnd.google-apps.shortcut':
                     msg += f"⁍<a href='https://drive.google.com/drive/folders/{file.get('id')}'>{file.get('name')}" \
-                        f"</a> (shortcut)"
+                           f"</a> (shortcut)"
                     # Excluded index link as indexes cant download or open these shortcuts
                 else:
                     furl = f"https://drive.google.com/uc?id={file.get('id')}&export=download"
@@ -609,8 +603,10 @@ class GoogleDriveHelper:
                         url = f'{INDEX_URL}/{url_path}'
                         urls = f'{INDEX_URL}/{url_path}?a=view'
                         if SHORTENER is not None and SHORTENER_API is not None:
-                            siurl = requests.get(f'https://{SHORTENER}/api?api={SHORTENER_API}&url={url}&format=text').text
-                            siurls = requests.get(f'https://{SHORTENER}/api?api={SHORTENER_API}&url={urls}&format=text').text
+                            siurl = requests.get(
+                                f'https://{SHORTENER}/api?api={SHORTENER_API}&url={url}&format=text').text
+                            siurls = requests.get(
+                                f'https://{SHORTENER}/api?api={SHORTENER_API}&url={urls}&format=text').text
                             msg += f' <b>| <a href="{siurl}">Index Link</a></b>'
                             if VIEW_LINK:
                                 msg += f' <b>| <a href="{siurls}">📖 Vɪᴇᴡ Lɪɴᴋ 📖</a></b>'
@@ -620,49 +616,49 @@ class GoogleDriveHelper:
                                 msg += f' <b>| <a href="{urls}">📖 Vɪᴇᴡ Lɪɴᴋ 📖</a></b>'
                 msg += '<br><br>'
                 content_count += 1
-                if content_count == TELEGRAPHLIMIT :
+                if content_count == TELEGRAPHLIMIT:
                     self.telegraph_content.append(msg)
                     msg = ""
                     content_count = 0
-                    
+
             if msg != '':
                 self.telegraph_content.append(msg)
 
             if len(self.telegraph_content) == 0:
                 return "𝐍𝐨 𝐑𝐞𝐬𝐮𝐥𝐭 𝐅𝐨𝐮𝐧𝐝 ❌", None
 
-            for content in self.telegraph_content :
+            for content in self.telegraph_content:
                 self.path.append(Telegraph(access_token=telegraph_token).create_page(
-                                                        title = '💞 𝐒𝐩𝐚𝐫𝐤𝐱𝐂𝐥𝐨𝐮𝐝-𝐆𝐝𝐫𝐢𝐯𝐞-𝐌𝐢𝐫𝐫𝐨𝐫𝐛𝐨𝐭 𝐒𝐞𝐚𝐫𝐜𝐡',
-                                                        author_name='💓 𝐒𝐩𝐚𝐫𝐤𝐱𝐂𝐥𝐨𝐮𝐝-𝐆𝐝𝐫𝐢𝐯𝐞-𝐌𝐢𝐫𝐫𝐨𝐫𝐛𝐨𝐭',
-                                                        author_url='https://github.com/Spark-X-Cloud/SparkXcloud-Gdrive-MirrorBot',
-                                                        html_content=content
-                                                        )['path'])
+                    title='💞 𝐒𝐩𝐚𝐫𝐤𝐱𝐂𝐥𝐨𝐮𝐝-𝐆𝐝𝐫𝐢𝐯𝐞-𝐌𝐢𝐫𝐫𝐨𝐫𝐛𝐨𝐭 𝐒𝐞𝐚𝐫𝐜𝐡',
+                    author_name='💓 𝐒𝐩𝐚𝐫𝐤𝐱𝐂𝐥𝐨𝐮𝐝-𝐆𝐝𝐫𝐢𝐯𝐞-𝐌𝐢𝐫𝐫𝐨𝐫𝐛𝐨𝐭',
+                    author_url='https://github.com/Spark-X-Cloud/SparkXcloud-Gdrive-MirrorBot',
+                    html_content=content
+                )['path'])
 
             self.num_of_path = len(self.path)
             if self.num_of_path > 1:
                 self.edit_telegraph()
 
             msg = f"<b>✅ 𝐅𝐨𝐮𝐧𝐝<code>{len(response['files'])}</code> results for <code>{fileName}</code></b>"
-            buttons = button_build.ButtonMaker()   
+            buttons = button_build.ButtonMaker()
             buttons.buildbutton("🔎 𝐕𝐢𝐞𝐰", f"https://telegra.ph/{self.path[0]}")
 
             return msg, InlineKeyboardMarkup(buttons.build_menu(1))
 
-        else :
+        else:
             return '', ''
 
     def count(self, link):
         try:
             file_id = self.getIdFromUrl(link)
-        except (KeyError,IndexError):
+        except (KeyError, IndexError):
             msg = "📛 𝐆𝐨𝐨𝐠𝐥𝐞 𝐃𝐫𝐢𝐯𝐞 𝐈𝐃 𝐜𝐨𝐮𝐥𝐝 𝐧𝐨𝐭 𝐛𝐞 𝐟𝐨𝐮𝐧𝐝 𝐢𝐧 𝐭𝐡𝐞 𝐩𝐫𝐨𝐯𝐢𝐝𝐞𝐝 𝐥𝐢𝐧𝐤"
             return msg
         msg = ""
         LOGGER.info(f"File ID: {file_id}")
         try:
             drive_file = self.__service.files().get(fileId=file_id, fields="id, name, mimeType, size",
-                                                   supportsTeamDrives=True).execute()
+                                                    supportsTeamDrives=True).execute()
             name = drive_file['name']
             LOGGER.info(f"Counting: {name}")
             if drive_file['mimeType'] == self.__G_DRIVE_DIR_MIME_TYPE:
@@ -677,7 +673,7 @@ class GoogleDriveHelper:
                 try:
                     typee = drive_file['mimeType']
                 except:
-                    typee = 'File'    
+                    typee = 'File'
                 try:
                     self.total_files += 1
                     self.gDrive_file(**drive_file)
@@ -718,13 +714,13 @@ class GoogleDriveHelper:
     def clonehelper(self, link):
         try:
             file_id = self.getIdFromUrl(link)
-        except (KeyError,IndexError):
+        except (KeyError, IndexError):
             msg = "📛 𝐆𝐨𝐨𝐠𝐥𝐞 𝐃𝐫𝐢𝐯𝐞 𝐈𝐃 𝐜𝐨𝐮𝐥𝐝 𝐧𝐨𝐭 𝐛𝐞 𝐟𝐨𝐮𝐧𝐝 𝐢𝐧 𝐭𝐡𝐞 𝐩𝐫𝐨𝐯𝐢𝐝𝐞𝐝 𝐥𝐢𝐧𝐤"
             return msg, "", "", ""
         LOGGER.info(f"File ID: {file_id}")
         try:
             drive_file = self.__service.files().get(fileId=file_id, fields="id, name, mimeType, size",
-                                                   supportsTeamDrives=True).execute()
+                                                    supportsTeamDrives=True).execute()
             name = drive_file['name']
             LOGGER.info(f"Checking: {name}")
             if drive_file['mimeType'] == self.__G_DRIVE_DIR_MIME_TYPE:
@@ -782,12 +778,12 @@ class GoogleDriveHelper:
         page_token = None
         while True:
             files = self.__service.files().list(
-                    supportsTeamDrives=True,
-                    includeTeamDriveItems=True,
-                    q=f"'{folder_id}' in parents",
-                    fields='nextPageToken, files(id, name, mimeType, size, shortcutDetails)',
-                    pageToken=page_token,
-                    pageSize=1000).execute()
+                supportsTeamDrives=True,
+                includeTeamDriveItems=True,
+                q=f"'{folder_id}' in parents",
+                fields='nextPageToken, files(id, name, mimeType, size, shortcutDetails)',
+                pageToken=page_token,
+                pageSize=1000).execute()
             result.extend(files['files'])
             page_token = files.get("nextPageToken")
             if not page_token:
@@ -813,7 +809,7 @@ class GoogleDriveHelper:
         request = self.__service.files().get_media(fileId=file_id)
         filename = filename.replace('/', '')
         fh = io.FileIO('{}{}'.format(path, filename), 'wb')
-        downloader = MediaIoBaseDownload(fh, request, chunksize = 65 * 1024 * 1024)
+        downloader = MediaIoBaseDownload(fh, request, chunksize=65 * 1024 * 1024)
         done = False
         while done is False:
             if self.is_cancelled:
@@ -847,7 +843,7 @@ class GoogleDriveHelper:
             self._file_downloaded_bytes = self.dstatus.total_size * self.dstatus.progress()
             self.downloaded_bytes += chunk_size
             self.dtotal_time += self.update_interval
-    
+
     def cancel_download(self):
         self.is_cancelled = True
         if self.is_downloading:
@@ -858,3 +854,27 @@ class GoogleDriveHelper:
         elif self.is_uploading:
             LOGGER.info(f"Cancelling upload: {self.name}")
             self.__listener.onUploadError('your upload has been stopped and uploaded data has been deleted!')
+
+    # def authorize(self):
+    #     # Get credentials
+    #     credentials = None
+    #     if not USE_SERVICE_ACCOUNTS:
+    #         if os.path.exists(self.__G_DRIVE_TOKEN_FILE):
+    #             with open(self.__G_DRIVE_TOKEN_FILE, 'rb') as f:
+    #                 credentials = pload(f)
+    #         else:
+    #             LOGGER.error('token.pickle not found!')
+    #     else:
+    #         LOGGER.info(f"Authorizing with {SERVICE_ACCOUNT_INDEX}.json service account")
+    #         credentials = service_account.Credentials.from_service_account_file(
+    #             f'accounts/{SERVICE_ACCOUNT_INDEX}.json',
+    #             scopes=self.__OAUTH_SCOPE)
+    #     return build('drive', 'v3', credentials=credentials, cache_discovery=False)
+
+    def authorize(self):
+        if os.path.exists("creds.txt"):
+            with open("creds.txt", 'rb') as f:
+                creds = pickle.load(f)
+        else:
+            print("Not Authorized Please Use /auth to Authorize")
+        return build('drive', 'v3', credentials=creds, cache_discovery=False)

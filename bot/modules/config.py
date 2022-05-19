@@ -91,7 +91,7 @@ async def config_button(_, query):
     elif data == '2':
         return await query.message.edit(
             __header__.format(data)
-            + f"**[ Drive and Index Config ]**\n\n**GDRIVE_FOLDER_ID:** `{parent_id}`\n\n**IS_TEAM_DRIVE:** `{IS_TEAM_DRIVE}`\n\n**USE_SERVICE_ACCOUNTS:** `{USE_SERVICE_ACCOUNTS}`\n\n**INDEX_URL:** `{INDEX_URL}`",
+            + f"**[ Drive and Index Config ]**\n\n**GDRIVE_FOLDER_ID:** `{UPLOAD_FOLDER_ID}`\n\n**IS_TEAM_DRIVE:** `{IS_TEAM_DRIVE}`\n\n**USE_SERVICE_ACCOUNTS:** `{USE_SERVICE_ACCOUNTS}`\n\n**INDEX_URL:** `{INDEX_URL}`",
             reply_markup=types.InlineKeyboardMarkup(
                 [
                     [
