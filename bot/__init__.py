@@ -92,8 +92,15 @@ def get_client() -> qba.TorrentsAPIMixIn:
 
 DOWNLOAD_DIR = None
 BOT_TOKEN = None
-with open('selected_folder.txt', 'r') as file:
-    args = file.read().split(" ")
+if os.path.getsize("selected_folder.txt") > 0:
+    print("File is Not Empty")
+    with open('selected_folder.txt', 'r') as file:
+        args = file.read().split(" ")
+else:
+    with open('selected_folder.txt', 'w') as file:
+        file.truncate(0)
+        args = [getConfig('GDRIVE_PARENT_FOLDER_ID'), "Parent"]
+    print("File is Empty")
 UPLOAD_FOLDER_ID = args[0]
 UPLOAD_FOLDER_NAME = args[1]
 download_dict_lock = threading.Lock()

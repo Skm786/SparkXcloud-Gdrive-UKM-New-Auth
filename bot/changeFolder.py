@@ -15,11 +15,16 @@ upload_folder_name = bot.UPLOAD_FOLDER_NAME
 
 def list_folders(update, context):
     global delete_Message_id
+    global upload_folder_id
+    global upload_folder_name
     delete_Message_id = update.message.message_id
     print("Message id: " + str(update.message.message_id))
     button = ButtonMaker()
     print("Current Folder Name: " + upload_folder_name)
     print("Current Folder Name: " + upload_folder_id)
+    if not upload_folder_id:
+        upload_folder_id = bot.parent_id
+        upload_folder_name = "Parent"
     files = GoogleDriveHelper.getFilesByFolderId(GoogleDriveHelper(), bot.parent_id)
     # print(json.dumps(files))
     for file in files:
