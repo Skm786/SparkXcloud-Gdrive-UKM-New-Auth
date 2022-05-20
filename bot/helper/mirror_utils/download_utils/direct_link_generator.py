@@ -11,6 +11,7 @@ for original authorship. """
 from bot import LOGGER, UPTOBOX_TOKEN, CRYPT
 from base64 import b64decode
 from base64 import standard_b64encode
+import requests
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException
 import json
 import math
