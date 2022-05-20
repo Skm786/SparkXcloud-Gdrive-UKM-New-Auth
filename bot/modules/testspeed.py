@@ -1,4 +1,4 @@
-from speedtest import Speedtest
+from speedtest import SpeedTest
 from bot.helper.telegram_helper.filters import CustomFilters
 from bot import dispatcher
 from bot.helper.telegram_helper.bot_commands import BotCommands
@@ -8,7 +8,7 @@ from telegram.ext import CommandHandler
 
 def speedtest(update, context):
     speed = sendMessage("𝐑𝐮𝐧𝐧𝐢𝐧𝐠 𝐒𝐩𝐞𝐞𝐝 𝐓𝐞𝐬𝐭 . . . ", context.bot, update)
-    test = Speedtest()
+    test = SpeedTest()
     test.get_best_server()
     test.download()
     test.upload()

@@ -1,21 +1,24 @@
-from bot import LOGGER, MEGA_API_KEY, download_dict_lock, download_dict, MEGA_EMAIL_ID, MEGA_PASSWORD
-import threading
-from mega import (MegaApi, MegaListener, MegaRequest, MegaTransfer, MegaError)
-from bot.helper.telegram_helper.message_utils import *
 import os
+import random
+import string
+import threading
+
+from mega import (MegaApi, MegaListener, MegaRequest, MegaTransfer, MegaError)
+
+from bot import MEGA_API_KEY, MEGA_EMAIL_ID, MEGA_PASSWORD
+from bot import MEGA_LIMIT, STOP_DUPLICATE, TAR_UNZIP_LIMIT
 from bot.helper.ext_utils.bot_utils import new_thread, get_mega_link_type, get_readable_file_size, check_limit
 from bot.helper.mirror_utils.status_utils.mega_download_status import MegaDownloadStatus
 from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
-from bot import MEGA_LIMIT, STOP_DUPLICATE, TAR_UNZIP_LIMIT
-import random
-import string
+from bot.helper.telegram_helper.message_utils import *
+
 
 class MegaDownloaderException(Exception):
     pass
 
 
 class MegaAppListener(MegaListener):
-    _NO_EVENT_ON = (MegaRequest.TYPE_LOGIN,MegaRequest.TYPE_FETCH_NODES)
+    _NO_EVENT_ON = (MegaRequest.TYPE_LOGIN, MegaRequest.TYPE_FETCH_NODES)
     NO_ERROR = "no error"
 
     def __init__(self, continue_event: threading.Event, listener):
@@ -132,7 +135,9 @@ class AsyncExecutor:
         function(*args)
         self.continue_event.wait()
 
+
 listeners = []
+
 
 class MegaDownloadHelper:
     def __init__(self):
@@ -157,7 +162,7 @@ class MegaDownloadHelper:
             node = mega_listener.public_node
         else:
             LOGGER.info("Folder. If your download didn't start, then check your link if it's available to download")
-            folder_api = MegaApi(MEGA_API_KEY,None,None,'TgBot')
+            folder_api = MegaApi(MEGA_API_KEY, None, None, 'TgBot')
             folder_api.addListener(mega_listener)
             executor.do(folder_api.loginToFolder, (mega_link,))
             node = folder_api.authorizeNode(mega_listener.node)
@@ -197,4 +202,4 @@ class MegaDownloadHelper:
         gid = ''.join(random.SystemRandom().choices(string.ascii_letters + string.digits, k=8))
         mega_listener.setValues(node.getName(), api.getSize(node), gid)
         sendStatusMessage(listener.update, listener.bot)
-        executor.do(api.startDownload,(node,path))
+        executor.do(api.startDownload, (node, path))

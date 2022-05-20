@@ -1,16 +1,42 @@
-from time import sleep
+import os
 
 from telegram import InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler
-
+from bot import PARENT_FOLDER_ID
 import bot
 from bot import dispatcher
 from bot.helper.button_builder import ButtonMaker
 from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
+from bot.helper.telegram_helper.filters import CustomFilters
 
 delete_Message_id = ''
 upload_folder_id = bot.UPLOAD_FOLDER_ID
 upload_folder_name = bot.UPLOAD_FOLDER_NAME
+
+
+def createFolder(update, context):
+    folder_name = update.message.text.split(" ")
+    if not len(folder_name) > 1:
+        context.bot.sendMessage(update.message.chat_id,
+                                reply_to_message_id=update.message.message_id,
+                                text=f"Please Provide a Folder Name With Command",
+                                allow_sending_without_reply=True,
+                                parse_mode='HTMl', disable_web_page_preview=True)
+    else:
+        response = GoogleDriveHelper.createNewFolder(GoogleDriveHelper(), folder_name=folder_name[1], bot=context.bot,
+                                                     update=update)
+        if not response:
+            context.bot.sendMessage(update.message.chat_id,
+                                    reply_to_message_id=update.message.message_id,
+                                    text=f"Folder With Name {folder_name[1]} Already Exist",
+                                    allow_sending_without_reply=True,
+                                    parse_mode='HTMl', disable_web_page_preview=True)
+        else:
+            context.bot.sendMessage(update.message.chat_id,
+                                    reply_to_message_id=update.message.message_id,
+                                    text=f"Successfully Created New Folder : {folder_name[1]}",
+                                    allow_sending_without_reply=True,
+                                    parse_mode='HTMl', disable_web_page_preview=True)
 
 
 def list_folders(update, context):
@@ -21,11 +47,11 @@ def list_folders(update, context):
     print("Message id: " + str(update.message.message_id))
     button = ButtonMaker()
     print("Current Folder Name: " + upload_folder_name)
-    print("Current Folder Name: " + upload_folder_id)
+    print("Current Folder id: " + PARENT_FOLDER_ID)
     if not upload_folder_id:
-        upload_folder_id = bot.parent_id
-        upload_folder_name = "Parent"
-    files = GoogleDriveHelper.getFilesByFolderId(GoogleDriveHelper(), bot.parent_id)
+        upload_folder_id = PARENT_FOLDER_ID
+        upload_folder_name = "SparkX Bot Uploads"
+    files = GoogleDriveHelper.getFilesByFolderId(GoogleDriveHelper(), PARENT_FOLDER_ID)
     # print(json.dumps(files))
     for file in files:
         if "application/vnd.google-apps.folder" in file['mimeType']:
@@ -48,7 +74,7 @@ def select_folder(update, context):
     upload_folder_id = current_folder_id
     upload_folder_name = current_folder_name
     print(f"Current Folder Name {current_folder_name}")
-    #print(f"Current Folder Id {current_folder_id}")
+    # print(f"Current Folder Id {current_folder_id}")
     with open('selected_folder.txt', 'w') as file:
         file.truncate(0)
         file.write(str(query.data))
@@ -60,6 +86,10 @@ def select_folder(update, context):
     GoogleDriveHelper()
 
 
-list_handler = CommandHandler(command="dir", callback=list_folders, run_async=True)
+list_handler = CommandHandler(command="dir", callback=list_folders,
+                              filters=CustomFilters.owner_filter and CustomFilters.login_user, run_async=True)
+create_handler = CommandHandler(command="add", callback=createFolder,
+                                filters=CustomFilters.owner_filter and CustomFilters.login_user, run_async=True)
 dispatcher.add_handler(CallbackQueryHandler(callback=select_folder))
 dispatcher.add_handler(list_handler)
+dispatcher.add_handler(create_handler)

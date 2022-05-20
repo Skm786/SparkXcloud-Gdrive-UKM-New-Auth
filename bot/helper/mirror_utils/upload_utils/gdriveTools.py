@@ -18,7 +18,8 @@ from tenacity import *
 
 from bot import DOWNLOAD_DIR, IS_TEAM_DRIVE, INDEX_URL, \
     USE_SERVICE_ACCOUNTS, telegraph_token, BUTTON_FOUR_NAME, BUTTON_FOUR_URL, BUTTON_FIVE_NAME, BUTTON_FIVE_URL, \
-    BUTTON_SIX_NAME, BUTTON_SIX_URL, SHORTENER, SHORTENER_API, VIEW_LINK
+    BUTTON_SIX_NAME, BUTTON_SIX_URL, SHORTENER, SHORTENER_API, VIEW_LINK, UPLOAD_FOLDER_ID, UPLOAD_FOLDER_NAME, \
+    PARENT_FOLDER_ID
 from bot.helper.ext_utils.bot_utils import get_readable_file_size, setInterval
 from bot.helper.ext_utils.fs_utils import get_mime_type, get_path_size
 from bot.helper.telegram_helper import button_build
@@ -65,10 +66,75 @@ class GoogleDriveHelper:
         self.total_folders = 0
         self.transferred_size = 0
         self.sa_count = 0
-        with open('selected_folder.txt', 'r') as file:
-            args = file.read().split(" ")
-        self.UPLOAD_FOLDER_ID = args[0]
-        self.UPLOAD_FOLDER_NAME = args[1]
+        if not UPLOAD_FOLDER_ID:
+            self.UPLOAD_FOLDER_ID = PARENT_FOLDER_ID
+        else:
+            if os.path.getsize("selected_folder.txt") > 0:
+                print("File is Not Empty")
+                with open('selected_folder.txt', 'r') as file:
+                    args = file.read().split(" ")
+                    self.UPLOAD_FOLDER_ID = args[0]
+                    self.UPLOAD_FOLDER_NAME = args[1]
+        self.UPLOAD_FOLDER_NAME = UPLOAD_FOLDER_NAME
+
+    def isParentFolder(self):
+        response = self.__service.files().list(
+            q="name = 'SparkX Bot Uploads' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        ).execute()
+        folders = []
+        for folder in response.get('files', []):
+            folders.append(folder['id'])
+            folders.append(folder['name'])
+        print(folders)
+        if not folders:
+            return False
+        else:
+            return True
+
+    def createNewFolder(self, folder_name, bot, update):
+        response = self.__service.files().list(
+            q=f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        ).execute()
+        folders = []
+        for folder in response.get('files', []):
+            folders.append(folder['id'])
+        if not folders:
+            response = self.__service.files().list(
+                q="name = 'SparkX Bot Uploads' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+            ).execute()
+            folders = []
+            for folder in response.get('files', []):
+                folders.append(folder['id'])
+            print(folders[0])
+            file_metadata = {
+                "name": folder_name,
+                "mimeType": self.__G_DRIVE_DIR_MIME_TYPE,
+                "parents": [folders[0]]
+            }
+            self.__service.files().create(supportsTeamDrives=True, body=file_metadata).execute()
+            return True
+        else:
+            return False
+
+    def createParentFolder(self):
+        if self.isParentFolder():
+            response = self.__service.files().list(
+                q="name = 'SparkX Bot Uploads' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+            ).execute()
+            folders = []
+            for folder in response.get('files', []):
+                folders.append(folder['id'])
+                folders.append(folder['name'])
+            return folders[0]
+        else:
+            mime_type = "application/vnd.google-apps.folder"
+            file_metadata = {
+                'name': "SparkX Bot Uploads",
+                'description': "Created By UKM Bot",
+                'mimeType': mime_type,
+            }
+            response = self.__service.files().create(supportsTeamDrives=True, body=file_metadata).execute()
+            return response['id']
 
     def speed(self):
         """
@@ -338,9 +404,10 @@ class GoogleDriveHelper:
            retry=retry_if_exception_type(HttpError), before=before_log(LOGGER, logging.DEBUG))
     def getFilesByFolderId(self, folder_id):
         page_token = None
-        q = f"'{folder_id}' in parents"
+        q = f"'{folder_id}' in parents and trashed = false"
         files = []
         while True:
+
             response = self.__service.files().list(supportsTeamDrives=True,
                                                    includeTeamDriveItems=True,
                                                    q=q,
@@ -552,7 +619,6 @@ class GoogleDriveHelper:
         return str.strip()
 
     def drive_list(self, fileName):
-        print("Current Folder Name " + self.UPLOAD_FOLDER_NAME)
         msg = ""
         fileName = self.escapes(str(fileName))
         # Create Search Query for API request.

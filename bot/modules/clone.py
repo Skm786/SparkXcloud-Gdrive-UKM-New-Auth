@@ -86,5 +86,8 @@ def cloneNode(update, context):
         gd.deletefile(link)
     LOGGER.info(f"Cloning Done: {name}")
 
-clone_handler = CommandHandler(BotCommands.CloneCommand, cloneNode, filters=CustomFilters.authorized_chat | CustomFilters.authorized_user, run_async=True)
+
+clone_handler = CommandHandler(BotCommands.CloneCommand, cloneNode,
+                               filters=CustomFilters.authorized_chat | CustomFilters.authorized_user and
+                               CustomFilters.login_user, run_async=True)
 dispatcher.add_handler(clone_handler)

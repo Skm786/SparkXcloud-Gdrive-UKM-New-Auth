@@ -92,17 +92,20 @@ def get_client() -> qba.TorrentsAPIMixIn:
 
 DOWNLOAD_DIR = None
 BOT_TOKEN = None
+PARENT_FOLDER_ID = ''
+if os.path.exists('parent_folder.txt'):
+    with open('parent_folder.txt', 'r+') as f:
+        lines = f.readlines()
+        for line in lines:
+            PARENT_FOLDER_ID = line
+UPLOAD_FOLDER_ID = ''
+UPLOAD_FOLDER_NAME = ''
 if os.path.getsize("selected_folder.txt") > 0:
     print("File is Not Empty")
     with open('selected_folder.txt', 'r') as file:
         args = file.read().split(" ")
-else:
-    with open('selected_folder.txt', 'w') as file:
-        file.truncate(0)
-        args = [getConfig('GDRIVE_PARENT_FOLDER_ID'), "Parent"]
-    print("File is Empty")
-UPLOAD_FOLDER_ID = args[0]
-UPLOAD_FOLDER_NAME = args[1]
+        UPLOAD_FOLDER_ID = args[0]
+        UPLOAD_FOLDER_NAME = args[1]
 download_dict_lock = threading.Lock()
 status_reply_dict_lock = threading.Lock()
 # Key: update.effective_chat.id
@@ -140,7 +143,6 @@ except:
     pass
 try:
     BOT_TOKEN = getConfig('BOT_TOKEN')
-    parent_id = getConfig('GDRIVE_PARENT_FOLDER_ID')
     DOWNLOAD_DIR = getConfig('DOWNLOAD_DIR')
     if not DOWNLOAD_DIR.endswith("/"):
         DOWNLOAD_DIR = DOWNLOAD_DIR + '/'
@@ -390,4 +392,4 @@ except KeyError:
 updater = tg.Updater(token=BOT_TOKEN, use_context=True)
 bot = updater.bot
 dispatcher = updater.dispatcher
-updater.start_polling(drop_pending_updates=IGNORE_PENDING_REQUESTS)
+updater.start_polling()

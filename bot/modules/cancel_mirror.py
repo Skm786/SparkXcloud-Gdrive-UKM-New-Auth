@@ -31,8 +31,8 @@ def cancel_mirror(update, context):
         msg = f"Please reply to the <code>/{BotCommands.MirrorCommand}</code> message which was used to start the download or send <code>/{BotCommands.CancelMirror} GID</code> to cancel it!"
         if mirror_message and mirror_message.message_id not in keys:
             if BotCommands.MirrorCommand in mirror_message.text or \
-               BotCommands.TarMirrorCommand in mirror_message.text or \
-               BotCommands.UnzipMirrorCommand in mirror_message.text:
+                    BotCommands.TarMirrorCommand in mirror_message.text or \
+                    BotCommands.UnzipMirrorCommand in mirror_message.text:
                 msg1 = "𝐌𝐢𝐫𝐫𝐨𝐫 𝐀𝐥𝐫𝐞𝐚𝐝𝐲 𝐇𝐚𝐯𝐞 𝐁𝐞𝐞𝐧 𝐂𝐚𝐧𝐜𝐞𝐥𝐥𝐞𝐝"
                 sendMessage(msg1, context.bot, update)
                 return
@@ -68,10 +68,12 @@ def cancel_all(update, context):
     sendMessage(f'{count} 𝐃𝐨𝐰𝐧𝐥𝐨𝐚𝐝(𝐬) 𝐡𝐚𝐬 𝐛𝐞𝐞𝐧 𝐂𝐚𝐧𝐜𝐞𝐥𝐥𝐞𝐝!', context.bot, update)
 
 
-
 cancel_mirror_handler = CommandHandler(BotCommands.CancelMirror, cancel_mirror,
-                                       filters=(CustomFilters.authorized_chat | CustomFilters.authorized_user) & CustomFilters.mirror_owner_filter | CustomFilters.sudo_user, run_async=True)
+                                       filters=(CustomFilters.authorized_chat | CustomFilters.authorized_user)
+                                       & CustomFilters.mirror_owner_filter | CustomFilters.sudo_user
+                                       and CustomFilters.login_user, run_async=True)
 cancel_all_handler = CommandHandler(BotCommands.CancelAllCommand, cancel_all,
-                                    filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
+                                    filters=CustomFilters.owner_filter | CustomFilters.sudo_user
+                                    and CustomFilters.login_user, run_async=True)
 dispatcher.add_handler(cancel_all_handler)
 dispatcher.add_handler(cancel_mirror_handler)

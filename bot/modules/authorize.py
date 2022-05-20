@@ -5,6 +5,7 @@ from oauth2client.client import OAuth2WebServerFlow, FlowExchangeError
 from telegram import InlineKeyboardMarkup
 from telegram.ext import CommandHandler
 
+import bot
 from bot import AUTHORIZED_CHATS, SUDO_USERS, dispatcher, DB_URI
 from bot import LOGGER
 from bot.helper.button_builder import ButtonMaker
@@ -12,6 +13,7 @@ from bot.helper.ext_utils.db_handler import DbManger
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper.message_utils import sendMessage
+from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
 
 OAUTH_SCOPE = "https://www.googleapis.com/auth/drive"
 REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
@@ -29,7 +31,6 @@ flow = None
 
 def _auth(update, context):
     button = ButtonMaker()
-    user_id = update.message.from_user.id
     creds = os.path.exists("creds.txt")
     # creds = gDriveDB.search(user_id)
     if creds is not False:
@@ -80,6 +81,13 @@ def _token(update, context):
                 LOGGER.info(f'AuthSuccess: {user_id}')
                 context.bot.edit_message_text(text=AUTH_SUCCESSFULLY, message_id=update.message.message_id + 1,
                                               chat_id=update.message.chat_id)
+                parent_id = GoogleDriveHelper.createParentFolder(GoogleDriveHelper())
+                f = open("parent_folder.txt", "w+")
+                print("Folder id " + parent_id)
+                f.truncate(0)
+                f.write(parent_id)
+                f.close()
+                bot.PARENT_FOLDER_ID = parent_id
                 flow = None
             except FlowExchangeError:
                 context.bot.edit_message_text(text=INVALID_AUTH_CODE, message_id=update.message.message_id + 1,
@@ -90,15 +98,19 @@ def _token(update, context):
             sendMessage(text=FLOW_IS_NONE, bot=context.bot, update=update)
 
 
-def _revoke(client, message):
-    user_id = message.from_user.id
-    try:
-        os.remove("creds.txt")
-        LOGGER.info(f'Revoked:{user_id}')
-        message.reply_text(REVOKED, quote=True)
-    except Exception as e:
-        message.reply_text(f"**ERROR:** ```{e}```", quote=True)
-
+def _revoke(update, context):
+    user_id = update.message.from_user.id
+    if os.path.exists("creds.txt"):
+        try:
+            os.remove("creds.txt")
+            LOGGER.info(f'Revoked:{user_id}')
+            with open('selected_folder.txt', 'w') as file:
+                file.truncate(0)
+            update.message.reply_text(REVOKED, quote=True)
+        except Exception as e:
+            update.message.reply_text(f"**ERROR:** ```{e}```", quote=True)
+    else:
+        update.message.reply_text("Currently You Are Not Logged in\nUse /login to login", quote=True)
 
 def authorize(update, context):
     reply_message = None
@@ -274,15 +286,20 @@ def sendAuthChats(update, context):
 
 
 send_auth_handler = CommandHandler(command=BotCommands.AuthorizedUsersCommand, callback=sendAuthChats,
-                                   filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
+                                   filters=CustomFilters.owner_filter | CustomFilters.sudo_user
+                                   and CustomFilters.login_user, run_async=True)
 authorize_handler = CommandHandler(command=BotCommands.AuthorizeCommand, callback=authorize,
-                                   filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
+                                   filters=CustomFilters.owner_filter | CustomFilters.sudo_user
+                                   and CustomFilters.login_user, run_async=True)
 unauthorize_handler = CommandHandler(command=BotCommands.UnAuthorizeCommand, callback=unauthorize,
-                                     filters=CustomFilters.owner_filter | CustomFilters.sudo_user, run_async=True)
+                                     filters=CustomFilters.owner_filter | CustomFilters.sudo_user
+                                     and CustomFilters.login_user, run_async=True)
 addsudo_handler = CommandHandler(command=BotCommands.AddSudoCommand, callback=addSudo,
-                                 filters=CustomFilters.owner_filter, run_async=True)
+                                 filters=CustomFilters.owner_filter
+                                 and CustomFilters.login_user, run_async=True)
 removesudo_handler = CommandHandler(command=BotCommands.RmSudoCommand, callback=removeSudo,
-                                    filters=CustomFilters.owner_filter, run_async=True)
+                                    filters=CustomFilters.owner_filter
+                                    and CustomFilters.login_user, run_async=True)
 
 login_handler = CommandHandler(command="login", callback=_auth,
                                filters=CustomFilters.owner_filter, run_async=True)

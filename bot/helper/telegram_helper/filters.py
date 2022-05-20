@@ -1,3 +1,5 @@
+import os
+
 from telegram.ext import MessageFilter
 from telegram import Message
 from bot import AUTHORIZED_CHATS, SUDO_USERS, OWNER_ID, download_dict, download_dict_lock
@@ -16,6 +18,12 @@ class CustomFilters:
             return bool(id in AUTHORIZED_CHATS or id in SUDO_USERS or id == OWNER_ID)
 
     authorized_user = _AuthorizedUserFilter()
+
+    class _LoginFilter(MessageFilter):
+        def filter(self, message):
+            return bool(os.path.exists("creds.txt") and os.path.getsize("creds.txt") > 0)
+
+    login_user = _LoginFilter()
 
     class _AuthorizedChat(MessageFilter):
         def filter(self, message):

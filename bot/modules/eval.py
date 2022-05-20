@@ -133,7 +133,8 @@ def exechelp(update, context):
 EVAL_HANDLER = CommandHandler(('eval'), evaluate, filters=CustomFilters.owner_filter, run_async=True)
 EXEC_HANDLER = CommandHandler(('exec'), execute, filters=CustomFilters.owner_filter, run_async=True)
 CLEAR_HANDLER = CommandHandler('clearlocals', clear, filters=CustomFilters.owner_filter, run_async=True)
-EXECHELP_HANDLER = CommandHandler(BotCommands.ExecHelpCommand, exechelp, filters=CustomFilters.owner_filter, run_async=True)
+EXECHELP_HANDLER = CommandHandler(BotCommands.ExecHelpCommand, exechelp, filters=CustomFilters.owner_filter,
+                                  run_async=True)
 
 dispatcher.add_handler(EVAL_HANDLER)
 dispatcher.add_handler(EXEC_HANDLER)
