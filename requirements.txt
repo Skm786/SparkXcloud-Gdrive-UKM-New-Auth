@@ -14,6 +14,7 @@ heroku3
 js2py
 lk21
 lxml
+oauth2client
 psutil
 psycopg2-binary
 pybase64
