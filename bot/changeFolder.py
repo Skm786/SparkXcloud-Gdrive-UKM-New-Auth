@@ -2,7 +2,6 @@ import os
 
 from telegram import InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler
-from bot import PARENT_FOLDER_ID
 import bot
 from bot import dispatcher
 from bot.helper.button_builder import ButtonMaker
@@ -23,8 +22,7 @@ def createFolder(update, context):
                                 allow_sending_without_reply=True,
                                 parse_mode='HTMl', disable_web_page_preview=True)
     else:
-        response = GoogleDriveHelper.createNewFolder(GoogleDriveHelper(), folder_name=folder_name[1], bot=context.bot,
-                                                     update=update)
+        response = GoogleDriveHelper.createNewFolder(GoogleDriveHelper(), folder_name=folder_name[1])
         if not response:
             context.bot.sendMessage(update.message.chat_id,
                                     reply_to_message_id=update.message.message_id,
@@ -46,12 +44,12 @@ def list_folders(update, context):
     delete_Message_id = update.message.message_id
     print("Message id: " + str(update.message.message_id))
     button = ButtonMaker()
-    print("Current Folder Name: " + upload_folder_name)
-    print("Current Folder id: " + PARENT_FOLDER_ID)
     if not upload_folder_id:
-        upload_folder_id = PARENT_FOLDER_ID
+        upload_folder_id = bot.PARENT_FOLDER_ID
         upload_folder_name = "SparkX Bot Uploads"
-    files = GoogleDriveHelper.getFilesByFolderId(GoogleDriveHelper(), PARENT_FOLDER_ID)
+    print("Current Folder Name: " + upload_folder_name)
+    print("Current Folder id: " + upload_folder_id)
+    files = GoogleDriveHelper.getFilesByFolderId(GoogleDriveHelper(), bot.PARENT_FOLDER_ID)
     # print(json.dumps(files))
     for file in files:
         if "application/vnd.google-apps.folder" in file['mimeType']:
@@ -75,11 +73,12 @@ def select_folder(update, context):
     upload_folder_name = current_folder_name
     print(f"Current Folder Name {current_folder_name}")
     # print(f"Current Folder Id {current_folder_id}")
-    with open('selected_folder.txt', 'w') as file:
-        file.truncate(0)
-        file.write(str(query.data))
-        bot.UPLOAD_FOLDER_ID = current_folder_id
-        bot.UPLOAD_FOLDER_NAME = current_folder_name
+    f = open("selected_folder.txt", "w+")
+    f.truncate(0)
+    f.write(str(query.data))
+    f.close()
+    bot.UPLOAD_FOLDER_ID = current_folder_id
+    bot.UPLOAD_FOLDER_NAME = current_folder_name
     context.bot.deleteMessage(chat_id=bot.OWNER_ID, message_id=int(delete_Message_id) + 1)
     context.bot.sendMessage(text=f"Successfully Changed Folder To {current_folder_name}", chat_id=bot.OWNER_ID)
     query.answer("Successfully Changed The Folder")

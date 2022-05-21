@@ -86,7 +86,6 @@ def _token(update, context):
                 print("Folder id " + parent_id)
                 f.truncate(0)
                 f.write(parent_id)
-                f.close()
                 bot.PARENT_FOLDER_ID = parent_id
                 flow = None
             except FlowExchangeError:
@@ -103,9 +102,11 @@ def _revoke(update, context):
     if os.path.exists("creds.txt"):
         try:
             os.remove("creds.txt")
+            if os.path.exists("parent_folder.txt"):
+                os.remove("parent_folder.txt")
+            if os.path.exists("selected_folder.txt"):
+                os.remove("selected_folder.txt")
             LOGGER.info(f'Revoked:{user_id}')
-            with open('selected_folder.txt', 'w') as file:
-                file.truncate(0)
             update.message.reply_text(REVOKED, quote=True)
         except Exception as e:
             update.message.reply_text(f"**ERROR:** ```{e}```", quote=True)

@@ -18,7 +18,7 @@ from bot.helper.ext_utils.bot_utils import get_mega_link_type, check_limit
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException, NotSupportedExtractionArchive
 from bot.helper.mirror_utils.download_utils.aria2_download import AriaDownloadHelper
 from bot.helper.mirror_utils.download_utils.direct_link_generator import direct_link_generator
-from bot.helper.mirror_utils.download_utils.mega_downloader import MegaDownloadHelper
+# from bot.helper.mirror_utils.download_utils.mega_downloader import MegaDownloadHelper
 from bot.helper.mirror_utils.download_utils.qbit_downloader import qbittorrent
 from bot.helper.mirror_utils.download_utils.telegram_downloader import TelegramDownloadHelper
 from bot.helper.mirror_utils.status_utils import listeners
@@ -378,19 +378,19 @@ def _mirror(bot, update, isTar=False, extract=False, isZip=False, isQbit=False):
         sendStatusMessage(update, bot)
         drive.download(link)
 
-    elif bot_utils.is_mega_link(link):
-        link_type = get_mega_link_type(link)
-        if link_type == "folder" and BLOCK_MEGA_FOLDER:
-            sendMessage(
-                "𝐌𝐞𝐠𝐚 𝐅𝐨𝐥𝐝𝐞𝐫 𝐚𝐫𝐞 𝐛𝐥𝐨𝐜𝐤𝐞𝐝! 𝐂𝐨𝐳 𝐍𝐨𝐭 𝐒𝐭𝐚𝐛𝐥𝐞 & 𝐖𝐢𝐥𝐥 𝐒𝐮𝐩𝐩𝐨𝐫𝐭 𝐭𝐡𝐢𝐬 𝐅𝐞𝐚𝐭𝐮𝐫𝐞 𝐬𝐨𝐨𝐧!",
-                bot, update)
-        elif BLOCK_MEGA_LINKS:
-            sendMessage(
-                "𝐌𝐞𝐠𝐚 𝐋𝐢𝐧𝐤𝐬 𝐚𝐫𝐞 𝐛𝐥𝐨𝐜𝐤𝐞𝐝! 𝐂𝐨𝐳 𝐍𝐨𝐭 𝐒𝐭𝐚𝐛𝐥𝐞 & 𝐖𝐢𝐥𝐥 𝐒𝐮𝐩𝐩𝐨𝐫𝐭 𝐭𝐡𝐢𝐬 𝐅𝐞𝐚𝐭𝐮𝐫𝐞 𝐬𝐨𝐨𝐧!",
-                bot, update)
-        else:
-            mega_dl = MegaDownloadHelper()
-            mega_dl.add_download(link, f'{DOWNLOAD_DIR}{listener.uid}/', listener)
+    # elif bot_utils.is_mega_link(link):
+    #     link_type = get_mega_link_type(link)
+    #     if link_type == "folder" and BLOCK_MEGA_FOLDER:
+    #         sendMessage(
+    #             "𝐌𝐞𝐠𝐚 𝐅𝐨𝐥𝐝𝐞𝐫 𝐚𝐫𝐞 𝐛𝐥𝐨𝐜𝐤𝐞𝐝! 𝐂𝐨𝐳 𝐍𝐨𝐭 𝐒𝐭𝐚𝐛𝐥𝐞 & 𝐖𝐢𝐥𝐥 𝐒𝐮𝐩𝐩𝐨𝐫𝐭 𝐭𝐡𝐢𝐬 𝐅𝐞𝐚𝐭𝐮𝐫𝐞 𝐬𝐨𝐨𝐧!",
+    #             bot, update)
+    #     elif BLOCK_MEGA_LINKS:
+    #         sendMessage(
+    #             "𝐌𝐞𝐠𝐚 𝐋𝐢𝐧𝐤𝐬 𝐚𝐫𝐞 𝐛𝐥𝐨𝐜𝐤𝐞𝐝! 𝐂𝐨𝐳 𝐍𝐨𝐭 𝐒𝐭𝐚𝐛𝐥𝐞 & 𝐖𝐢𝐥𝐥 𝐒𝐮𝐩𝐩𝐨𝐫𝐭 𝐭𝐡𝐢𝐬 𝐅𝐞𝐚𝐭𝐮𝐫𝐞 𝐬𝐨𝐨𝐧!",
+    #             bot, update)
+    #     else:
+    #         mega_dl = MegaDownloadHelper()
+    #         mega_dl.add_download(link, f'{DOWNLOAD_DIR}{listener.uid}/', listener)
 
     elif isQbit and (bot_utils.is_magnet(link) or os.path.exists(link)):
         qbit = qbittorrent()

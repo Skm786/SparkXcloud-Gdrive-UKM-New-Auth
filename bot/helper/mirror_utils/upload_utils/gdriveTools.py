@@ -18,11 +18,11 @@ from tenacity import *
 
 from bot import DOWNLOAD_DIR, IS_TEAM_DRIVE, INDEX_URL, \
     USE_SERVICE_ACCOUNTS, telegraph_token, BUTTON_FOUR_NAME, BUTTON_FOUR_URL, BUTTON_FIVE_NAME, BUTTON_FIVE_URL, \
-    BUTTON_SIX_NAME, BUTTON_SIX_URL, SHORTENER, SHORTENER_API, VIEW_LINK, UPLOAD_FOLDER_ID, UPLOAD_FOLDER_NAME, \
-    PARENT_FOLDER_ID
+    BUTTON_SIX_NAME, BUTTON_SIX_URL, SHORTENER, SHORTENER_API, VIEW_LINK
 from bot.helper.ext_utils.bot_utils import get_readable_file_size, setInterval
 from bot.helper.ext_utils.fs_utils import get_mime_type, get_path_size
 from bot.helper.telegram_helper import button_build
+import bot
 
 LOGGER = logging.getLogger(__name__)
 logging.getLogger('googleapiclient.discovery').setLevel(logging.ERROR)
@@ -66,16 +66,17 @@ class GoogleDriveHelper:
         self.total_folders = 0
         self.transferred_size = 0
         self.sa_count = 0
-        if not UPLOAD_FOLDER_ID:
-            self.UPLOAD_FOLDER_ID = PARENT_FOLDER_ID
+        self.UPLOAD_FOLDER_ID : str
+        self.UPLOAD_FOLDER_NAME : str
+        if not bot.UPLOAD_FOLDER_ID:
+            # with open('parent_folder.txt', 'r') as file:
+            #     args = file.read()
+            self.UPLOAD_FOLDER_ID = bot.PARENT_FOLDER_ID
+            self.UPLOAD_FOLDER_NAME = "SparkX Bot Uploads"
         else:
-            if os.path.getsize("selected_folder.txt") > 0:
-                print("File is Not Empty")
-                with open('selected_folder.txt', 'r') as file:
-                    args = file.read().split(" ")
-                    self.UPLOAD_FOLDER_ID = args[0]
-                    self.UPLOAD_FOLDER_NAME = args[1]
-        self.UPLOAD_FOLDER_NAME = UPLOAD_FOLDER_NAME
+            self.UPLOAD_FOLDER_ID = bot.UPLOAD_FOLDER_ID
+            self.UPLOAD_FOLDER_NAME = bot.UPLOAD_FOLDER_NAME
+        print("Folder name and id" + self.UPLOAD_FOLDER_NAME + self.UPLOAD_FOLDER_ID)
 
     def isParentFolder(self):
         response = self.__service.files().list(
@@ -91,7 +92,7 @@ class GoogleDriveHelper:
         else:
             return True
 
-    def createNewFolder(self, folder_name, bot, update):
+    def createNewFolder(self, folder_name):
         response = self.__service.files().list(
             q=f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
         ).execute()

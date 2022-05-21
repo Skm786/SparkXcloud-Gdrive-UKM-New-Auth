@@ -89,21 +89,21 @@ def get_client() -> qba.TorrentsAPIMixIn:
         LOGGER.error(str(e))
         return None
 
-
 DOWNLOAD_DIR = None
 BOT_TOKEN = None
 PARENT_FOLDER_ID = ''
 if os.path.exists('parent_folder.txt'):
-    with open('parent_folder.txt', 'r+') as f:
-        lines = f.readlines()
-        for line in lines:
-            PARENT_FOLDER_ID = line
+    if os.path.getsize("selected_folder.txt") > 0:
+        with open('parent_folder.txt', 'r') as file:
+            args = file.read()
+        PARENT_FOLDER_ID = args
+        print(args + " Parent Folder ID")
 UPLOAD_FOLDER_ID = ''
 UPLOAD_FOLDER_NAME = ''
-if os.path.getsize("selected_folder.txt") > 0:
-    print("File is Not Empty")
-    with open('selected_folder.txt', 'r') as file:
-        args = file.read().split(" ")
+if os.path.exists('selected_folder.txt'):
+    if os.path.getsize("selected_folder.txt") > 0:
+        with open('selected_folder.txt', 'r') as file:
+            args = file.read().split(" ")
         UPLOAD_FOLDER_ID = args[0]
         UPLOAD_FOLDER_NAME = args[1]
 download_dict_lock = threading.Lock()
