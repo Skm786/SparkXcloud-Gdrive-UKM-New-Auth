@@ -11,7 +11,7 @@ from sys import executable
 from telegram import ParseMode
 from telegram.ext import CommandHandler
 from wserver import start_server_async
-from bot import bot, IMAGE_URL, dispatcher, updater, botStartTime, IGNORE_PENDING_REQUESTS, IS_VPS, SERVER_PORT
+from bot import bot, dispatcher, updater, botStartTime, IGNORE_PENDING_REQUESTS, IS_VPS, SERVER_PORT
 from bot.helper.ext_utils import fs_utils
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.message_utils import *
@@ -20,7 +20,7 @@ from .helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper import button_build
 from .modules import authorize, list, cancel_mirror, mirror_status, mirror, clone, watch, shell, eval, torrent_search, \
     delete, count, config, updates
-from bot import changeFolder
+from bot import changeFolder, changeImage
 
 
 def stats(update, context):
@@ -47,6 +47,13 @@ def stats(update, context):
             f'<b>├  Dɪsᴋ : {disk}%</b>\n' \
             f'<b>│</b>\n' \
             f'<b>╰──《 Bᴏᴛ Sᴛᴀᴛɪsᴛɪᴄs 》</b>'
+    if os.path.exists("image_url.txt"):
+        if os.path.getsize("image_url.txt") > 0:
+            with open('image_url.txt', 'r') as file:
+                args = file.read()
+            IMAGE_URL = args
+        else:
+            IMAGE_URL = 'https://telegra.ph/file/7ac7fa23a5c3d2bbba654.jpg'
     update.effective_message.reply_photo(IMAGE_URL, stats, parse_mode=ParseMode.HTML)
 
 
