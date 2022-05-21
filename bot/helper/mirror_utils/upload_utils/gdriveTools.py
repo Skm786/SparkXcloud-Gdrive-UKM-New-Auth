@@ -76,7 +76,7 @@ class GoogleDriveHelper:
         else:
             self.UPLOAD_FOLDER_ID = bot.UPLOAD_FOLDER_ID
             self.UPLOAD_FOLDER_NAME = bot.UPLOAD_FOLDER_NAME
-        print("Folder name and id" + self.UPLOAD_FOLDER_NAME + self.UPLOAD_FOLDER_ID)
+        print("Folder name and id " + self.UPLOAD_FOLDER_NAME + " " + self.UPLOAD_FOLDER_ID)
 
     def isParentFolder(self):
         response = self.__service.files().list(
@@ -100,19 +100,12 @@ class GoogleDriveHelper:
         for folder in response.get('files', []):
             folders.append(folder['id'])
         if not folders:
-            response = self.__service.files().list(
-                q="name = 'SparkX Bot Uploads' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-            ).execute()
-            folders = []
-            for folder in response.get('files', []):
-                folders.append(folder['id'])
-            print(folders[0])
             file_metadata = {
                 "name": folder_name,
                 "mimeType": self.__G_DRIVE_DIR_MIME_TYPE,
-                "parents": [folders[0]]
+                "parents": [bot.PARENT_FOLDER_ID]
             }
-            self.__service.files().create(supportsTeamDrives=True, body=file_metadata).execute()
+            self.__service.files().create(body=file_metadata).execute()
             return True
         else:
             return False

@@ -93,7 +93,7 @@ DOWNLOAD_DIR = None
 BOT_TOKEN = None
 PARENT_FOLDER_ID = ''
 if os.path.exists('parent_folder.txt'):
-    if os.path.getsize("selected_folder.txt") > 0:
+    if os.path.getsize("parent_folder.txt") > 0:
         with open('parent_folder.txt', 'r') as file:
             args = file.read()
         PARENT_FOLDER_ID = args
