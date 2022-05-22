@@ -20,7 +20,7 @@ from .helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper import button_build
 from .modules import authorize, list, cancel_mirror, mirror_status, mirror, clone, watch, shell, eval, torrent_search, \
     delete, count, config, updates
-from bot import changeFolder, changeImage
+from bot import changeFolder
 from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
 
 
