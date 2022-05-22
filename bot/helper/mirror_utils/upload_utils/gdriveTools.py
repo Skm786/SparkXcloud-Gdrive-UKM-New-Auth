@@ -82,7 +82,6 @@ class GoogleDriveHelper:
         response = self.__service.files().list(
             supportsTeamDrives=False,
             includeTeamDriveItems=False,
-            driveId = bot.PARENT_FOLDER_ID,
             q="name = 'SparkX Bot Uploads' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
         ).execute()
         folders = []
