@@ -89,5 +89,5 @@ def cloneNode(update, context):
 
 clone_handler = CommandHandler(BotCommands.CloneCommand, cloneNode,
                                filters=CustomFilters.authorized_chat | CustomFilters.authorized_user and
-                               CustomFilters.login_user, run_async=True)
+                               CustomFilters.login_user and CustomFilters.parent_folder_filter, run_async=True)
 dispatcher.add_handler(clone_handler)

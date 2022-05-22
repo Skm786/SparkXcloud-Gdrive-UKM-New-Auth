@@ -6,7 +6,6 @@ import time
 import random
 import string
 import subprocess
-
 import aria2p
 import qbittorrentapi as qba
 import telegram.ext as tg
@@ -91,15 +90,15 @@ def get_client() -> qba.TorrentsAPIMixIn:
 
 DOWNLOAD_DIR = None
 BOT_TOKEN = None
-PARENT_FOLDER_ID = ''
+PARENT_FOLDER_ID = None
+UPLOAD_FOLDER_ID = None
+UPLOAD_FOLDER_NAME = None
 if os.path.exists('parent_folder.txt'):
     if os.path.getsize("parent_folder.txt") > 0:
         with open('parent_folder.txt', 'r') as file:
             args = file.read()
         PARENT_FOLDER_ID = args
         print(args + " Parent Folder ID")
-UPLOAD_FOLDER_ID = ''
-UPLOAD_FOLDER_NAME = ''
 if os.path.exists('selected_folder.txt'):
     if os.path.getsize("selected_folder.txt") > 0:
         with open('selected_folder.txt', 'r') as file:

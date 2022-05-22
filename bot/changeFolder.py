@@ -86,9 +86,9 @@ def select_folder(update, context):
 
 
 list_handler = CommandHandler(command="dir", callback=list_folders,
-                              filters=CustomFilters.owner_filter and CustomFilters.login_user, run_async=True)
+                              filters=CustomFilters.owner_filter and CustomFilters.login_user and CustomFilters.parent_folder_filter, run_async=True)
 create_handler = CommandHandler(command="add", callback=createFolder,
-                                filters=CustomFilters.owner_filter and CustomFilters.login_user, run_async=True)
+                                filters=CustomFilters.owner_filter and CustomFilters.login_user and CustomFilters.parent_folder_filter, run_async=True)
 dispatcher.add_handler(CallbackQueryHandler(callback=select_folder))
 dispatcher.add_handler(list_handler)
 dispatcher.add_handler(create_handler)

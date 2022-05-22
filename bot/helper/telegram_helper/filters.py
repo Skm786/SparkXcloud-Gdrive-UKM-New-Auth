@@ -19,6 +19,12 @@ class CustomFilters:
 
     authorized_user = _AuthorizedUserFilter()
 
+    class _ParentFolderFilter(MessageFilter):
+        def filter(self, message):
+            return bool(os.path.exists("parent_folder.txt") and os.path.getsize("parent_folder.txt") > 0)
+
+    parent_folder_filter = _ParentFolderFilter()
+
     class _LoginFilter(MessageFilter):
         def filter(self, message):
             return bool(os.path.exists("creds.txt") and os.path.getsize("creds.txt") > 0)
