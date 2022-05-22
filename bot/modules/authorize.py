@@ -71,11 +71,11 @@ from bot.helper.telegram_helper.message_utils import sendMessage
 #             try:
 #                 user_id = update.message.from_user.id
 #                 sendMessage(text="🕵️**Checking received code...**", bot=context.bot, update=update)
-#                 creds = flow.step2_exchange(token)
-#                 with open('creds.txt', 'wb') as file:
-#                     pickle.dump(creds, file)
-#                 print(creds)
-#                 LOGGER.info(f'AuthSuccess: {user_id}')
+                # creds = flow.step2_exchange(token)
+                # with open('creds.txt', 'wb') as file:
+                #     pickle.dump(creds, file)
+                # print(creds)
+                # LOGGER.info(f'AuthSuccess: {user_id}')
 #                 context.bot.edit_message_text(text=AUTH_SUCCESSFULLY, message_id=update.message.message_id + 1,
 #                                               chat_id=update.message.chat_id)
 #                 parent_id = GoogleDriveHelper.createParentFolder(GoogleDriveHelper())
