@@ -80,7 +80,10 @@ class GoogleDriveHelper:
 
     def isParentFolder(self):
         response = self.__service.files().list(
-            q="name = 'SparkX Bot Uploads' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+            supportsTeamDrives=False,
+            includeTeamDriveItems=False,
+            driveId = bot.PARENT_FOLDER_ID,
+            q="name = 'SparkX Bot Uploads' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
         ).execute()
         folders = []
         for folder in response.get('files', []):
@@ -94,7 +97,9 @@ class GoogleDriveHelper:
 
     def createNewFolder(self, folder_name):
         response = self.__service.files().list(
-            q=f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+            supportsTeamDrives=False,
+            includeTeamDriveItems=False,
+            q=f"'{bot.PARENT_FOLDER_ID}' in parents and name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
         ).execute()
         folders = []
         for folder in response.get('files', []):
