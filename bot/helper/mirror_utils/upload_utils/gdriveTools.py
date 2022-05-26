@@ -69,17 +69,17 @@ class GoogleDriveHelper:
         self.UPLOAD_FOLDER_ID : str
         self.UPLOAD_FOLDER_NAME : str
         if not bot.UPLOAD_FOLDER_ID:
-            # with open('parent_folder.txt', 'r') as file:
-            #     args = file.read()
             self.UPLOAD_FOLDER_ID = bot.PARENT_FOLDER_ID
             self.UPLOAD_FOLDER_NAME = "SparkX Bot Uploads"
         else:
             self.UPLOAD_FOLDER_ID = bot.UPLOAD_FOLDER_ID
             self.UPLOAD_FOLDER_NAME = bot.UPLOAD_FOLDER_NAME
-        print("Folder name and id" + self.UPLOAD_FOLDER_NAME + self.UPLOAD_FOLDER_ID)
+            # print("Folder name and id " + self.UPLOAD_FOLDER_NAME + " " + self.UPLOAD_FOLDER_ID)
 
     def isParentFolder(self):
         response = self.__service.files().list(
+            supportsTeamDrives=False,
+            includeTeamDriveItems=False,
             q="name = 'SparkX Bot Uploads' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
         ).execute()
         folders = []
@@ -94,25 +94,20 @@ class GoogleDriveHelper:
 
     def createNewFolder(self, folder_name):
         response = self.__service.files().list(
-            q=f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+            supportsTeamDrives=False,
+            includeTeamDriveItems=False,
+            q=f"'{bot.PARENT_FOLDER_ID}' in parents and name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
         ).execute()
         folders = []
         for folder in response.get('files', []):
             folders.append(folder['id'])
         if not folders:
-            response = self.__service.files().list(
-                q="name = 'SparkX Bot Uploads' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-            ).execute()
-            folders = []
-            for folder in response.get('files', []):
-                folders.append(folder['id'])
-            print(folders[0])
             file_metadata = {
                 "name": folder_name,
                 "mimeType": self.__G_DRIVE_DIR_MIME_TYPE,
-                "parents": [folders[0]]
+                "parents": [bot.PARENT_FOLDER_ID]
             }
-            self.__service.files().create(supportsTeamDrives=True, body=file_metadata).execute()
+            self.__service.files().create(body=file_metadata).execute()
             return True
         else:
             return False
@@ -126,7 +121,8 @@ class GoogleDriveHelper:
             for folder in response.get('files', []):
                 folders.append(folder['id'])
                 folders.append(folder['name'])
-            return folders[0]
+            LOGGER.info("Parent Folder Already Available With Id " + folders[0] )
+            parent_id = folders[0]
         else:
             mime_type = "application/vnd.google-apps.folder"
             file_metadata = {
@@ -134,8 +130,16 @@ class GoogleDriveHelper:
                 'description': "Created By UKM Bot",
                 'mimeType': mime_type,
             }
-            response = self.__service.files().create(supportsTeamDrives=True, body=file_metadata).execute()
-            return response['id']
+            response = self.__service.files().create(body=file_metadata).execute()
+            bot.PARENT_FOLDER_ID = response['id']
+            LOGGER.info("Parent Folder Created With Id " + response['id'] )
+            parent_id = response['id']
+        bot.PARENT_FOLDER_ID = parent_id
+        f = open("parent_folder.txt", "w+")
+        print("Folder id " + parent_id)
+        f.truncate(0)
+        f.write(parent_id)
+        return parent_id
 
     def speed(self):
         """
@@ -186,7 +190,7 @@ class GoogleDriveHelper:
                                      resumable=False)
         file_metadata = {
             'name': file_name,
-            'description': "👨‍🦱𝐔𝐩𝐥𝐨𝐚𝐝𝐞𝐝 𝐔𝐬𝐢𝐧𝐠 𝐒𝐩𝐚𝐫𝐤𝐱𝐂𝐥𝐨𝐮𝐝-𝐆𝐝𝐫𝐢𝐯𝐞-𝐌𝐢𝐫𝐫𝐨𝐫𝐛𝐨𝐭",
+            'description': "Uploaded Using Ukm Bot",
             'mimeType': mime_type,
         }
         if parent_id is not None:
@@ -241,7 +245,7 @@ class GoogleDriveHelper:
         # File body description
         file_metadata = {
             'name': file_name,
-            'description': "💮 𝐔𝐩𝐥𝐨𝐚𝐝𝐞𝐝 𝐁𝐲 𝐒𝐩𝐚𝐫𝐤𝐱𝐂𝐥𝐨𝐮𝐝-𝐆𝐝𝐫𝐢𝐯𝐞-𝐌𝐢𝐫𝐫𝐨𝐫𝐁𝐨𝐭",
+            'description': "💮 Uploaded Using Ukm Bot",
             'mimeType': mime_type,
         }
         try:

@@ -11,7 +11,7 @@ from sys import executable
 from telegram import ParseMode
 from telegram.ext import CommandHandler
 from wserver import start_server_async
-from bot import bot, IMAGE_URL, dispatcher, updater, botStartTime, IGNORE_PENDING_REQUESTS, IS_VPS, SERVER_PORT
+from bot import bot, dispatcher, updater, botStartTime, IGNORE_PENDING_REQUESTS, IS_VPS, SERVER_PORT
 from bot.helper.ext_utils import fs_utils
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.message_utils import *
@@ -21,6 +21,7 @@ from bot.helper.telegram_helper import button_build
 from .modules import authorize, list, cancel_mirror, mirror_status, mirror, clone, watch, shell, eval, torrent_search, \
     delete, count, config, updates
 from bot import changeFolder
+from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
 
 
 def stats(update, context):
@@ -34,23 +35,22 @@ def stats(update, context):
     cpuUsage = psutil.cpu_percent(interval=0.5)
     memory = psutil.virtual_memory().percent
     disk = psutil.disk_usage('/').percent
-    stats = f'<b>╭──《 Bᴏᴛ Sᴛᴀᴛɪsᴛɪᴄs 》</b>\n' \
-            f'<b>│</b>\n' \
-            f'<b>├  Rᴜɴɴɪɴɢ Sɪɴᴄᴇ ▶ : {currentTime}</b>\n' \
-            f'<b>├  Tᴏᴛᴀʟ Dɪsᴋ Sᴘᴀᴄᴇ : {total}</b>\n' \
-            f'<b>├  Tᴏᴛᴀʟ Usᴇᴅ Sᴘᴀᴄᴇ : {used}</b>\n' \
-            f'<b>├  Tᴏᴛᴀʟ Fʀᴇᴇ Sᴘᴀᴄᴇ : {free}</b>\n' \
-            f'<b>├  Tᴏᴛᴀʟ Uᴘʟᴏᴀᴅ : {sent}</b>\n' \
-            f'<b>├  Tᴏᴛᴀʟ Dᴏᴡɴʟᴏᴀᴅ : {recv}</b>\n' \
-            f'<b>├  Cᴘᴜ : {cpuUsage}%</b>\n' \
-            f'<b>├  Rᴀᴍ : {memory}%</b>\n' \
-            f'<b>├  Dɪsᴋ : {disk}%</b>\n' \
-            f'<b>│</b>\n' \
-            f'<b>╰──《 Bᴏᴛ Sᴛᴀᴛɪsᴛɪᴄs 》</b>'
-    update.effective_message.reply_photo(IMAGE_URL, stats, parse_mode=ParseMode.HTML)
+    stats = f'<b>《Bᴏᴛ Sᴛᴀᴛɪsᴛɪᴄs》</b>\n' \
+            f'<b></b>\n' \
+            f'<b> Rᴜɴɴɪɴɢ Sɪɴᴄᴇ ▶ : {currentTime}</b>\n' \
+            f'<b> Tᴏᴛᴀʟ Dɪsᴋ Sᴘᴀᴄᴇ : {total}</b>\n' \
+            f'<b> Tᴏᴛᴀʟ Usᴇᴅ Sᴘᴀᴄᴇ : {used}</b>\n' \
+            f'<b> Tᴏᴛᴀʟ Fʀᴇᴇ Sᴘᴀᴄᴇ : {free}</b>\n' \
+            f'<b> Tᴏᴛᴀʟ Uᴘʟᴏᴀᴅ : {sent}</b>\n' \
+            f'<b> Tᴏᴛᴀʟ Dᴏᴡɴʟᴏᴀᴅ : {recv}</b>\n' \
+            f'<b> Cᴘᴜ : {cpuUsage}%</b>\n' \
+            f'<b> Rᴀᴍ : {memory}%</b>\n' \
+            f'<b> Dɪsᴋ : {disk}%</b>\n'
+    update.effective_message.reply_text(stats, parse_mode=ParseMode.HTML)
 
 
 def start(update, context):
+    GoogleDriveHelper.createParentFolder(GoogleDriveHelper())
     uptime = get_readable_time(time.time() - botStartTime)
     start_string = f'''
 This bot can mirror all your links to Google Drive!
@@ -227,7 +227,7 @@ def main():
         os.remove(".restartmsg")
     bot.set_my_commands(botcmds)
 
-    start_handler = CommandHandler(BotCommands.StartCommand, start, run_async=True)
+    start_handler = CommandHandler(BotCommands.StartCommand, start,filters=CustomFilters.login_user, run_async=True)
     ping_handler = CommandHandler(BotCommands.PingCommand, ping,
                                   filters=CustomFilters.authorized_chat | CustomFilters.authorized_user, run_async=True)
     restart_handler = CommandHandler(BotCommands.RestartCommand, restart,

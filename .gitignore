@@ -11,3 +11,8 @@ data*
 authorized_chats.txt
 log.txt
 accounts/*
+memory.session
+config.env
+parent_folder.txt
+selected_folder.txt
+creds.txt
